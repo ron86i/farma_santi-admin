@@ -1,6 +1,6 @@
 
-import { modificarEstatusUsuarioById, modificarUsuario, obtenerUsuarioById, registrarUsuario } from "@/services/usuarioService"; // Asegúrate de tener esta función importada
-import type { UsuarioRequest, Message, UsuarioDetail } from "@/models"; // Ajusta según tus tipos reales
+import { modificarEstadoUsuarioById, modificarUsuario, obtenerListaUsuarios, obtenerUsuarioById, registrarUsuario } from "@/services/usuarioService"; // Asegúrate de tener esta función importada
+import type { UsuarioRequest, Message, UsuarioDetail, UsuarioInfo } from "@/models"; // Ajusta según tus tipos reales
 import { useState } from "react";
 
 export function useRegistrarUsuario() {
@@ -80,18 +80,43 @@ export function useObtenerUsuarioById() {
   return { fetchObtenerUsuario,usuario, message, loading, error };
 }
 
+export function useObtenerListaUsuarios() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<Message | null>(null);
+  const [usuarios, setUsuarios] = useState<UsuarioInfo[]>([])
+  const fetchObtenerUsuarios = async () => {
+    setLoading(true);
+    setError(null);
+    setMessage(null);
+    try {
+      const data = await obtenerListaUsuarios()
+      setUsuarios(data)
+      return data;
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : "Error desconocido";
+      setError(msg);
+      setMessage({ message: "Hubo un problema al obtener el usuario. Intenta de nuevo." });
+      throw err;
+    } finally {
+      setLoading(false);
+    }
+  };
 
-export function useModificareStatusUsuario() {
+  return { fetchObtenerUsuarios,usuarios, message, loading, error };
+}
+
+export function useModificarEstadoUsuario() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<Message>();
 
-  const fetchModificarStatus = async (usuarioId: number) => {
+  const fetchModificarEstado = async (usuarioId: number) => {
     setLoading(true);
     setError(null);
 
     try {
-      const data = await modificarEstatusUsuarioById(usuarioId);
+      const data = await modificarEstadoUsuarioById(usuarioId);
       setMessage(data);
       return data;
     } catch (err) {
@@ -103,5 +128,5 @@ export function useModificareStatusUsuario() {
     }
   };
 
-  return { fetchModificar: fetchModificarStatus, message, loading, error };
+  return { fetchModificarEstado, message, loading, error };
 }

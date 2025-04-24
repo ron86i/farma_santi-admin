@@ -1,5 +1,5 @@
 import { BrowserRouter as Router, Routes, Route, Navigate } from "react-router";
-import { Login, NotFound, Dashboard, Usuarios } from "@/pages";
+import { Login, NotFound, Dashboard, Usuarios, Roles } from "@/pages";
 import { MainLayout } from "@/layouts";
 import { ProtectedRoute } from "@/components";
 import { i18n } from "dateformat";
@@ -35,6 +35,7 @@ function App() {
             <Route index element={<Navigate to="dashboard" replace />} />
             <Route path="dashboard" element={<Dashboard />} />
             <Route path="usuarios" element={<Usuarios />} />
+            <Route path="roles" element={<Roles />} />
           </Route>
         </Route>
 

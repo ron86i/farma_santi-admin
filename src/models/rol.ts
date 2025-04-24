@@ -9,3 +9,6 @@ export interface RolInfo {
     id:number;
     nombre: string;
 }
+export interface RolRequest {
+    nombre: string;
+}

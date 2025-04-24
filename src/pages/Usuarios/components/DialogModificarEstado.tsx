@@ -8,8 +8,8 @@ import {
     AlertDialogCancel,
     AlertDialogAction,
   } from "@/components/ui/alert-dialog";
-import { useUsuariosContext } from "@/context/usuarioContex";
-  import { useModificareStatusUsuario } from "@/hooks/useUsuario";
+import { useUsuariosContext } from "@/context/usuariosContex";
+  import { useModificarEstadoUsuario } from "@/hooks/useUsuario";
   import dateFormat from "dateformat";
   
   interface DialogModificarStatusProps {
@@ -19,17 +19,17 @@ import { useUsuariosContext } from "@/context/usuarioContex";
     open: boolean;
   }
   
-  export function DialogModificarStatus({
+  export function DialogModificarEstado({
     usuarioId,
     deletedAt,
     onClose,
     open,
   }: DialogModificarStatusProps) {
     const estaEliminado = !!deletedAt;
-    const { fetchModificar, message, loading, error } = useModificareStatusUsuario();
+    const { fetchModificarEstado, message, loading, error } = useModificarEstadoUsuario();
     const { usuarioAction, setUsuarioAction } = useUsuariosContext();
     const onSubmit = async () => {
-      const ok = await fetchModificar(usuarioId);
+      const ok = await fetchModificarEstado(usuarioId);
       if (ok && onClose) {
         setUsuarioAction(!usuarioAction)
         onClose();

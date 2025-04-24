@@ -16,7 +16,7 @@ import {
 import { ModalModificaUsuario } from "./ModalModificarUsuario";
 import { useState } from "react";
 import { ModalDetalleUsuario } from "./ModalDetalleUsuario";
-import { DialogModificarStatus } from "./DialogModificarStatus";
+import { DialogModificarEstado } from "./DialogModificarEstado";
 
 type MenuAccionesProps = {
   usuarioId: number;
@@ -73,7 +73,7 @@ export function MenuAcciones({ usuarioId, deletedAt }: MenuAccionesProps) {
           onClose={() => setOpenModalVer(false)}
         />
       )}
-      {openDialogModificarStatus && <DialogModificarStatus open={openDialogModificarStatus} onClose={() => { setOpenDialogModificarStatus(false) }} deletedAt={deletedAt} usuarioId={usuarioId} />
+      {openDialogModificarStatus && <DialogModificarEstado open={openDialogModificarStatus} onClose={() => { setOpenDialogModificarStatus(false) }} deletedAt={deletedAt} usuarioId={usuarioId} />
 
       }
     </>

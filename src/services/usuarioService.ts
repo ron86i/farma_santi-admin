@@ -81,7 +81,7 @@ export async function obtenerUsuarioById(usuarioId:number): Promise<UsuarioDetai
     }
 }
 
-export async function modificarEstatusUsuarioById(usuarioId:number): Promise<Message> {
+export async function modificarEstadoUsuarioById(usuarioId:number): Promise<Message> {
     try {
         const response = await fetch(`${fullHostName}/usuarios/status/${usuarioId}`, {
             method: "PATCH",

@@ -49,9 +49,13 @@ export function TablaUsuarios({ users, loading, filter }: TablaUsuariosProps) {
     }
 
     const sorted = [...users].sort((a, b) => {
-      const valueA = getNestedValue(a, key);
-      const valueB = getNestedValue(b, key);
-
+      let valueA = getNestedValue(a, key);
+      let valueB = getNestedValue(b, key);
+      if (key === "deletedAt") {
+        // Si deletedAt es null o no
+        valueA = a.deletedAt ? "Inactivo" : "Activo";
+        valueB = b.deletedAt ? "Inactivo" : "Activo";
+    }
       if (typeof valueA === "string" && typeof valueB === "string") {
         return direction === "asc"
           ? valueA.localeCompare(valueB)

@@ -1,10 +1,10 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { useRoles } from "@/hooks";
+import { useObtenerRoles } from "@/hooks";
 import { useRegistrarUsuario } from "@/hooks/useUsuario";
 import { UsuarioRequest } from "@/models";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useUsuariosContext } from "@/context/usuarioContex";
+import { useUsuariosContext } from "@/context/usuariosContex";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Button, Input } from "@/components/ui";
@@ -17,11 +17,11 @@ import { CheckIcon, ChevronsUpDown } from "lucide-react";
 
 const schema = z.object({
   username: z
-  .string({
-    required_error: "Campo obligatorio",
-  })
-  .trim()
-  .min(1, { message: "Por favor, ingresa un nombre de usuario" }),
+    .string({
+      required_error: "Campo obligatorio",
+    })
+    .trim()
+    .min(1, { message: "Por favor, ingresa un nombre de usuario" }),
   ci: z
     .coerce
     .number({
@@ -75,7 +75,7 @@ interface ModalRegistrarUsuarioProps {
 }
 
 export function ModalRegistrarUsuario({ open, onClose }: ModalRegistrarUsuarioProps) {
-  const { fetchRoles, roles } = useRoles();
+  const { fetchRoles, roles } = useObtenerRoles();
   const { fetchRegistrar } = useRegistrarUsuario();
   const { usuarioAction, setUsuarioAction } = useUsuariosContext();
   const [rolesSelected, setRolesSelected] = useState<number[]>([]);

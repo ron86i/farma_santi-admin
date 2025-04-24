@@ -2,20 +2,20 @@
 import React, { createContext, useState, useContext } from "react";
 
 // Tipo de datos que vas a compartir
-type UsuarioContextType = {
+type UsuariosContextType = {
   usuarioAction: boolean;
   setUsuarioAction: (value: boolean) => void;
 };
 
 // Creamos el contexto con valor por defecto
-export const UsuariosContext = createContext<UsuarioContextType | undefined>(undefined);
+export const UsuariosContext = createContext<UsuariosContextType | undefined>(undefined);
 
 // Provider
 type UsuarioProviderProps = {
   children: React.ReactNode;
 };
 
-export function UsuarioProvider({ children }: UsuarioProviderProps) {
+export function UsuariosProvider({ children }: UsuarioProviderProps) {
   const [usuarioAction, setUsuarioAction] = useState(false);
 
   return (

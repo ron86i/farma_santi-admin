@@ -1,0 +1,97 @@
+import { z } from "zod";
+import { useRegistrarRol } from "@/hooks";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Button, Input } from "@/components/ui";
+import { useForm } from "react-hook-form";
+import { RolRequest } from "@/models";
+import { useRolesContext } from "@/context/rolesContext";
+
+const schema = z.object({
+  nombre: z
+    .string({
+      required_error: "Campo obligatorio",
+    })
+    .trim()
+    .min(1, { message: "Por favor, ingresa un nombre del rol" })
+});
+
+type FormData = z.infer<typeof schema>;
+
+interface ModalRegistrarRolProps {
+  onClose?: () => void;
+  open: boolean;
+}
+
+export function ModalRegistrarRol({ open, onClose }: ModalRegistrarRolProps) {
+  const { fetchRegistrar } = useRegistrarRol();
+  const { rolAction, setRolAction } = useRolesContext();
+
+
+  const form = useForm<FormData>({
+    resolver: zodResolver(schema),
+    mode: "onTouched",
+    defaultValues: {
+      nombre: ""
+    }
+  });
+
+  const onSubmit = async (data: FormData) => {
+    const rolRequest: RolRequest = {
+      nombre: data.nombre
+    };
+
+    try {
+      await fetchRegistrar(rolRequest);
+      setRolAction(!rolAction);
+      form.reset();
+      if (onClose) onClose();
+    } catch (err) {
+      console.error("Error al registrar:", err);
+    }
+  };
+
+  return (
+    <Dialog modal defaultOpen={false} open={open} onOpenChange={onClose}>
+      <DialogContent className="max-h-[96%] w-full overflow-auto sm:max-w-[600px] [&_[data-dialog-close]]:hidden"
+        onInteractOutside={(e) => e.preventDefault()}
+        onEscapeKeyDown={(e) => e.preventDefault()}
+      >
+        <DialogHeader >
+          <DialogTitle>Registrar rol</DialogTitle>
+          <DialogDescription>
+            Ingresa los datos del rol en el sistema.
+          </DialogDescription>
+        </DialogHeader>
+        <Form {...form}>
+          <form
+            onSubmit={form.handleSubmit(onSubmit)}
+            className="flex flex-col gap-2 text-black dark:text-white"
+          >
+            <FormField
+              control={form.control}
+              name="nombre"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Rol</FormLabel>
+                  <FormControl>
+                    <Input placeholder="rol1234" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <Button
+              type="submit"
+              className="mt-4 px-4 py-2 transition"
+            >
+              Guardar
+            </Button>
+          </form>
+        </Form>
+      </DialogContent>
+    </Dialog>
+  );
+}
+

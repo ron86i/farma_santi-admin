@@ -35,6 +35,7 @@ export function LayoutSidebar({ toggleSidebar }: LayoutSidebarProps) {
       <nav className="flex flex-col gap-2">
         <ButtonLink to="/main/dashboard" title="Inicio" nameIcon="home" />
         <ButtonLink to="/main/usuarios" title="Usuarios" nameIcon="user" />
+        <ButtonLink to="/main/roles" title="Roles" nameIcon="shield" />
         <Divider />
         <ButtonLink onClick={logOut} to="#" title="Cerrar sesión" nameIcon="log-out" />
 

@@ -2,9 +2,9 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useRoles } from "@/hooks";
+import { useObtenerRoles } from "@/hooks";
 import { UsuarioRequest } from "@/models";
-import { useUsuariosContext } from "@/context/usuarioContex";
+import { useUsuariosContext } from "@/context/usuariosContex";
 import { useModificarUsuario, useObtenerUsuarioById } from "@/hooks/useUsuario";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button, Input } from "@/components/ui";
@@ -77,7 +77,7 @@ type FormData = z.infer<typeof schema>;
 
 // Modal para modificar usuario
 export function ModalModificaUsuario({ usuarioId, open, onClose }: ModalModificarUsuarioProps) {
-  const { fetchRoles, roles } = useRoles();
+  const { fetchRoles, roles } = useObtenerRoles();
   const { fetchObtenerUsuario } = useObtenerUsuarioById();
   const { fetchModificar } = useModificarUsuario();
   const { usuarioAction, setUsuarioAction } = useUsuariosContext();
