@@ -1,6 +1,7 @@
 export interface Rol {
     id:number;
     nombre: string;
+    estado: string
     createdAt: Date;
     deletedAt?: Date | null;
 }

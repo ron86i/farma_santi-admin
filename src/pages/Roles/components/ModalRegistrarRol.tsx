@@ -7,6 +7,9 @@ import { Button, Input } from "@/components/ui";
 import { useForm } from "react-hook-form";
 import { RolRequest } from "@/models";
 import { useRolesContext } from "@/context/rolesContext";
+import { toast } from "sonner";
+import { CustomToast } from "@/components/toast";
+import dateFormat from "dateformat";
 
 const schema = z.object({
   nombre: z
@@ -25,7 +28,7 @@ interface ModalRegistrarRolProps {
 }
 
 export function ModalRegistrarRol({ open, onClose }: ModalRegistrarRolProps) {
-  const { fetchRegistrar } = useRegistrarRol();
+  const { mutate: registrarRol } = useRegistrarRol();
   const { rolAction, setRolAction } = useRolesContext();
 
 
@@ -43,12 +46,29 @@ export function ModalRegistrarRol({ open, onClose }: ModalRegistrarRolProps) {
     };
 
     try {
-      await fetchRegistrar(rolRequest);
+      const response = await registrarRol(rolRequest);
       setRolAction(!rolAction);
+      toast.custom((t) => (
+        <CustomToast
+          t={t}
+          type="success"
+          title="Rol registrado"
+          message={response?.message || "Error en el servidor"}
+          date={dateFormat(Date.now())}
+        />
+      ));
       form.reset();
       if (onClose) onClose();
-    } catch (err) {
-      console.error("Error al registrar:", err);
+    } catch (err: any) {
+      toast.custom((t) => (
+        <CustomToast
+          t={t}
+          type="error"
+          title="Error al registrar rol"
+          message={err?.response?.message || err?.message || "Error en el servidor"}
+          date={dateFormat(Date.now())}
+        />
+      ));
     }
   };
 

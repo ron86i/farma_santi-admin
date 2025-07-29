@@ -8,7 +8,7 @@ import {
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
 import { UsuarioInfo } from "@/models/usuario";
-import { getNestedValue } from "@/utilities";
+import { getNestedValue } from "@/utils";
 import { useEffect, useState } from "react";
 import { MenuAcciones } from "./MenuAccciones";
 import { ArrowDown, ArrowUp } from "lucide-react";
@@ -51,11 +51,7 @@ export function TablaUsuarios({ users, loading, filter }: TablaUsuariosProps) {
     const sorted = [...users].sort((a, b) => {
       let valueA = getNestedValue(a, key);
       let valueB = getNestedValue(b, key);
-      if (key === "deletedAt") {
-        // Si deletedAt es null o no
-        valueA = a.deletedAt ? "Inactivo" : "Activo";
-        valueB = b.deletedAt ? "Inactivo" : "Activo";
-    }
+
       if (typeof valueA === "string" && typeof valueB === "string") {
         return direction === "asc"
           ? valueA.localeCompare(valueB)
@@ -81,7 +77,7 @@ export function TablaUsuarios({ users, loading, filter }: TablaUsuariosProps) {
     { label: "Apellido Paterno", key: "persona.apellidoPaterno", sort: true },
     { label: "Apellido Materno", key: "persona.apellidoMaterno", sort: true },
     { label: "Género", key: "persona.genero", sort: true },
-    { label: "Estado", key: "deletedAt", sort: true },
+    { label: "Estado", key: "estado", sort: true },
     { label: "Acciones", key: "acciones", sort: false },
   ];
 
@@ -132,28 +128,26 @@ export function TablaUsuarios({ users, loading, filter }: TablaUsuariosProps) {
               </TableCell>
             </TableRow>
           ) : (
-            filteredUsers.map((user) => (
-              <TableRow key={user.persona.ci}>
+            filteredUsers.map((item) => (
+              <TableRow key={item.persona.ci}>
                 <TableCell>
-                  {user.persona.ci}
-                  {user.persona.complemento}
+                  {item.persona.ci}
+                  {item.persona.complemento}
                 </TableCell>
-                <TableCell>{user.username}</TableCell>
-                <TableCell>{user.persona.nombres}</TableCell>
-                <TableCell>{user.persona.apellidoPaterno}</TableCell>
-                <TableCell>{user.persona.apellidoMaterno}</TableCell>
+                <TableCell>{item.username}</TableCell>
+                <TableCell>{item.persona.nombres}</TableCell>
+                <TableCell>{item.persona.apellidoPaterno}</TableCell>
+                <TableCell>{item.persona.apellidoMaterno}</TableCell>
                 <TableCell className="text-center">
-                  {user.persona.genero}
+                  {item.persona.genero}
                 </TableCell>
-                <TableCell className="text-center">
-                  {user.deletedAt ? (
-                    <Badge variant="destructive">Inactivo</Badge>
-                  ) : (
-                    <Badge variant="default">Activo</Badge>
-                  )}
+                <TableCell>
+                  <Badge variant={ item.estado === 'Activo' ? 'default' : 'destructive' }>
+                    {item.estado}
+                  </Badge>
                 </TableCell>
-                <TableCell className="text-center">
-                  <MenuAcciones usuarioId={user.id} deletedAt={user.deletedAt ?? null} />
+                <TableCell >
+                  <MenuAcciones usuarioId={item.id} deletedAt={item.deletedAt ?? null} username={item.username} />
                 </TableCell>
               </TableRow>
             ))

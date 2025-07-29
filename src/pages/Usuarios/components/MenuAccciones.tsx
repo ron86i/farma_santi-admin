@@ -12,21 +12,29 @@ import {
   CheckCircle,
   Ban,
   Ellipsis,
+  KeyRound,
 } from "lucide-react";
-import { ModalModificaUsuario } from "./ModalModificarUsuario";
+
 import { useState } from "react";
+import { ModalModificaUsuario } from "./ModalModificarUsuario";
 import { ModalDetalleUsuario } from "./ModalDetalleUsuario";
-import { DialogModificarEstado } from "./DialogModificarEstado";
+import { DialogHabilitarUsuario } from "./DialogHabilitarUsuario";
+import { DialogDeshabilitarUsuario } from "./DialogDeshabilitarUsuario";
+import { DialogRestablecerPasswordUsuario } from "./DialogRestablecerPasswordUsuario";
 
 type MenuAccionesProps = {
   usuarioId: number;
   deletedAt: Date | null;
+  username: string;
 };
 
-export function MenuAcciones({ usuarioId, deletedAt }: MenuAccionesProps) {
+export function MenuAcciones({ usuarioId, deletedAt, username }: MenuAccionesProps) {
   const [openModalModificar, setOpenModalModificar] = useState(false);
   const [openModalVer, setOpenModalVer] = useState(false);
-  const [openDialogModificarStatus, setOpenDialogModificarStatus] = useState(false)
+  const [openDialogHabilitar, setOpenDialogHabilitar] = useState(false);
+  const [openDialogDeshabilitar, setOpenDialogDeshabilitar] = useState(false);
+  const [openDialogRestablecer, setOpenDialogRestablecer] = useState(false);
+
   return (
     <>
       <DropdownMenu>
@@ -44,17 +52,22 @@ export function MenuAcciones({ usuarioId, deletedAt }: MenuAccionesProps) {
 
           <DropdownMenuItem onClick={() => setOpenModalModificar(true)}>
             <Pencil className="w-4 h-4 mr-2 text-muted-foreground" />
-            Editar
+            Modificar
           </DropdownMenuItem>
 
-          <DropdownMenuItem disabled={deletedAt?false:true} onClick={() => setOpenDialogModificarStatus(true)}>
+          <DropdownMenuItem disabled={!deletedAt} onClick={() => setOpenDialogHabilitar(true)}>
             <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
             Habilitar
           </DropdownMenuItem>
 
-          <DropdownMenuItem disabled={deletedAt?true:false} onClick={() => setOpenDialogModificarStatus(true)}>
+          <DropdownMenuItem disabled={!!deletedAt} onClick={() => setOpenDialogDeshabilitar(true)}>
             <Ban className="w-4 h-4 mr-2 text-yellow-500" />
             Deshabilitar
+          </DropdownMenuItem>
+
+          <DropdownMenuItem disabled={!!deletedAt} onClick={() => setOpenDialogRestablecer(true)}>
+            <KeyRound className="w-4 h-4 mr-2 text-blue-500" />
+            Restablecer contraseña
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
@@ -73,9 +86,30 @@ export function MenuAcciones({ usuarioId, deletedAt }: MenuAccionesProps) {
           onClose={() => setOpenModalVer(false)}
         />
       )}
-      {openDialogModificarStatus && <DialogModificarEstado open={openDialogModificarStatus} onClose={() => { setOpenDialogModificarStatus(false) }} deletedAt={deletedAt} usuarioId={usuarioId} />
-
-      }
+      {openDialogHabilitar && (
+        <DialogHabilitarUsuario
+          open={openDialogHabilitar}
+          onClose={() => setOpenDialogHabilitar(false)}
+          deletedAt={deletedAt}
+          usuarioId={usuarioId}
+        />
+      )}
+      {openDialogDeshabilitar && (
+        <DialogDeshabilitarUsuario
+          open={openDialogDeshabilitar}
+          onClose={() => setOpenDialogDeshabilitar(false)}
+          deletedAt={deletedAt}
+          usuarioId={usuarioId}
+        />
+      )}
+      {openDialogRestablecer && (
+        <DialogRestablecerPasswordUsuario
+          open={openDialogRestablecer}
+          onClose={() => setOpenDialogRestablecer(false)}
+          usuarioId={usuarioId}
+          username={username}
+        />
+      )}
     </>
   );
 }

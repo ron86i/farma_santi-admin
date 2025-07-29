@@ -2,7 +2,8 @@ import { Dialog, DialogContent, Separator } from "@/components/ui";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { useEffect } from "react";
 import dateFormat from "dateformat";
-import { useObtenerRolById } from "@/hooks";
+import { useQuery } from "@/hooks/generic";
+import { obtenerRolById } from "@/services";
 
 
 interface ModalDetalleRolProps {
@@ -13,11 +14,11 @@ interface ModalDetalleRolProps {
 
 export function ModalDetalleRol({ rolId, open, onClose }: ModalDetalleRolProps) {
 
-    const { fetchObtener, rol } = useObtenerRolById();
+    const { fetch, data:rol } = useQuery(obtenerRolById)
 
     useEffect(() => {
         const obtenerDatos = async () => {
-            await fetchObtener(rolId);
+            await fetch(rolId);
         };
         obtenerDatos();
     }, [rolId]); // Ejecutar cuando cambie el ID
@@ -26,7 +27,7 @@ export function ModalDetalleRol({ rolId, open, onClose }: ModalDetalleRolProps) 
     return (
         <Dialog modal open={open} onOpenChange={onClose}>
             <DialogContent
-                className="w-full overflow-auto sm:max-w-[600px] [&_[data-dialog-close]]:hidden"
+                className="w-full max-h-screen overflow-auto sm:max-w-[600px]"
                 onInteractOutside={(e) => e.preventDefault()}
                 onEscapeKeyDown={(e) => e.preventDefault()}
             >
@@ -48,7 +49,7 @@ export function ModalDetalleRol({ rolId, open, onClose }: ModalDetalleRolProps) 
                     <Separator />
 
                     <div>
-                        <p className="font-semibold">Fecha de creación:</p>
+                        <p className="font-semibold">Fecha de registro:</p>
                         {rol?.createdAt &&
                             <p>{dateFormat(rol.createdAt)}</p>}
                     </div>

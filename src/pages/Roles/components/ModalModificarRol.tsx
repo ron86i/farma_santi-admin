@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { useModificarRol, useObtenerRolById } from "@/hooks";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -8,14 +7,19 @@ import { useForm } from "react-hook-form";
 import { RolRequest } from "@/models";
 import { useRolesContext } from "@/context/rolesContext";
 import { useEffect } from "react";
+import { useQuery } from "@/hooks/generic";
+import { obtenerRolById } from "@/services";
+import { useModificarRol } from "@/hooks";
+import { toast } from "sonner";
+import { CustomToast } from "@/components/toast";
+import dateFormat from "dateformat";
 
 const schema = z.object({
   nombre: z
-    .string({
-      required_error: "Campo obligatorio",
-    })
+    .string({ required_error: "Campo obligatorio" })
     .trim()
     .min(1, { message: "Por favor, ingresa el nombre del rol" })
+    .max(50, { message: "Límite de carácteres excedido" }),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -27,9 +31,9 @@ interface ModalModificarRolProps {
 }
 
 export function ModalModificarRol({ rolId, open, onClose }: ModalModificarRolProps) {
-  const { fetchModificar } = useModificarRol();
+  const { mutate: modificarRol } = useModificarRol();
   const { rolAction, setRolAction } = useRolesContext();
-  const { fetchObtener, rol, error, loading } = useObtenerRolById()
+  const { fetch: fetchObtener, data: rol } = useQuery(obtenerRolById)
 
 
 
@@ -63,11 +67,29 @@ export function ModalModificarRol({ rolId, open, onClose }: ModalModificarRolPro
     };
 
     try {
-      await fetchModificar(rolId, rolRequest);
+      const response = await modificarRol(rolId, rolRequest);
       setRolAction(!rolAction);
+      toast.custom((t) => (
+        <CustomToast
+          t={t}
+          type="success"
+          title="Rol modificado"
+          message={response?.message || "Error en el servidor"}
+          date={dateFormat(Date.now())}
+        />
+      ));
       form.reset();
       if (onClose) onClose();
-    } catch (err) {
+    } catch (err: any) {
+      toast.custom((t) => (
+        <CustomToast
+          t={t}
+          type="error"
+          title="Error al modificar rol"
+          message={err?.response?.message || "Error en el servidor"}
+          date={dateFormat(Date.now())}
+        />
+      ));
       console.error("Error al modificar:", err);
     }
   };
@@ -94,9 +116,9 @@ export function ModalModificarRol({ rolId, open, onClose }: ModalModificarRolPro
               name="nombre"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Usuario</FormLabel>
+                  <FormLabel>Nombre</FormLabel>
                   <FormControl>
-                    <Input placeholder="rol123" {...field} />
+                    <Input placeholder="rol123" {...field} max={50} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

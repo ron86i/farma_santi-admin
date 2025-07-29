@@ -7,7 +7,7 @@ import {
     TableCell,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { getNestedValue } from "@/utilities";
+import { getNestedValue } from "@/utils";
 import { useEffect, useState } from "react";
 import { ArrowDown, ArrowUp } from "lucide-react";
 import { Rol } from "@/models";
@@ -15,13 +15,13 @@ import dateFormat from "dateformat";
 import { MenuAcciones } from "./MenuAcciones";
 import { useRolesContext } from "@/context/rolesContext";
 
-type TablaUsuariosProps = {
+type TablaRolesProps = {
     roles: Rol[];
     loading: boolean;
     filter?: string;
 };
 
-export function TablaRoles({ roles: roles, loading, filter }: TablaUsuariosProps) {
+export function TablaRoles({ roles: roles, loading, filter }: TablaRolesProps) {
     const [sortedRoles, setSortedRoles] = useState<Rol[]>([]);
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
@@ -78,11 +78,6 @@ export function TablaRoles({ roles: roles, loading, filter }: TablaUsuariosProps
             let valueA = getNestedValue(a, key);
             let valueB = getNestedValue(b, key);
             
-            if (key === "deletedAt") {
-                // Si deletedAt es null o no
-                valueA = a.deletedAt ? "Inactivo" : "Activo";
-                valueB = b.deletedAt ? "Inactivo" : "Activo";
-            }
             if (typeof valueA === "string" && typeof valueB === "string") {
                 return direction === "asc"
                     ? valueA.localeCompare(valueB)
@@ -103,8 +98,8 @@ export function TablaRoles({ roles: roles, loading, filter }: TablaUsuariosProps
     const columns = [
         { label: "ID", key: "id", sort: true },
         { label: "Nombre", key: "nombre", sort: true },
-        { label: "Fecha creación", key: "createdAt", sort: true },
-        { label: "Estado", key: "deletedAt", sort: true },
+        { label: "Fecha registro", key: "createdAt", sort: true },
+        { label: "Estado", key: "estado", sort: true },
         { label: "Acciones", key: "acciones", sort: false },
     ];
 
@@ -154,23 +149,21 @@ export function TablaRoles({ roles: roles, loading, filter }: TablaUsuariosProps
                             </TableCell>
                         </TableRow>
                     ) : (
-                        filteredUsers.map((rol) => (
-                            <TableRow key={rol.id}>
-                                <TableCell>{rol.id}</TableCell>
-                                <TableCell>{rol.nombre}</TableCell>
+                        filteredUsers.map((item) => (
+                            <TableRow key={item.id}>
+                                <TableCell>{item.id}</TableCell>
+                                <TableCell>{item.nombre}</TableCell>
 
                                 <TableCell>
-                                    {dateFormat(rol.createdAt)}
+                                    {dateFormat(item.createdAt)}
                                 </TableCell>
                                 <TableCell>
-                                    {rol.deletedAt ? (
-                                        <Badge variant="destructive">Inactivo</Badge>
-                                    ) : (
-                                        <Badge variant="default">Activo</Badge>
-                                    )}
+                                    <Badge variant={item.estado === 'Activo' ? 'default' : 'destructive'}>
+                                        {item.estado}
+                                    </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <MenuAcciones rolId={rol.id} deletedAt={rol.deletedAt ?? null} />
+                                    <MenuAcciones rolId={item.id} deletedAt={item.deletedAt ?? null} />
                                 </TableCell>
                             </TableRow>
                         ))

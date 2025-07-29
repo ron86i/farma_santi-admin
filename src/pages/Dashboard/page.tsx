@@ -5,7 +5,7 @@ export function Dashboard() {
   return (
     <div className=" bg-neutral-100 dark:bg-neutral-800 p-6 rounded-lg">
       <h1 className="text-3xl font-bold text-neutral-800 dark:text-neutral-100 mb-6">
-        Dashboard
+        Inicio
       </h1>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">

@@ -1,90 +1,43 @@
 import { UserRequest } from "@/models";
-import { Message } from "@/models/message";
+import { MessageResponse } from "@/models/messageResponse";
+import apiClient, { parseAxiosError } from './axiosClient';
 
-export const fullHostName = "http://localhost:8890/api/v1";
+export async function logIn(userRequest: UserRequest): Promise<MessageResponse> {
+  try {
+    const response = await apiClient.post('/auth/login', userRequest);
+    return response.data as MessageResponse;
+  } catch (err) {
+    throw parseAxiosError(err, "Error al iniciar sesión");
+  }
+}
 
 
-export async function logIn(userRequest: UserRequest): Promise<Message> {
-    try {
-        const response = await fetch(`${fullHostName}/auth/login`, {
-            method: "POST",                // Usamos DELETE para el logout
-            headers: { "Content-Type": "application/json" },
-            body:JSON.stringify(userRequest),
-            credentials:"include"
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");  // Error en caso de respuesta no OK
-        }
-
-        // Si el logout es exitoso, se puede devolver el mensaje de éxito
-        return data as Message;  // Aseguramos que el tipo de retorno sea Message
-
-    } catch (err) {
-        // Si hay un error, lo lanzamos para manejarlo en el lugar que llame a esta función
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
-    }
+// Logout
+export async function logOut(): Promise<MessageResponse> {
+  try {
+    const response = await apiClient.get('/auth/logout');
+    return response.data as MessageResponse;
+  } catch (err: any) {
+    throw parseAxiosError(err, "Error al cerrar sesión");
+  }
 };
 
-export async function logOut(): Promise<Message> {
-    try {
-        const response = await fetch(`${fullHostName}/auth/logout`, {
-            method: "GET",                // Usamos DELETE para el logout
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",          // Importante para enviar cookies
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");  // Error en caso de respuesta no OK
-        }
-
-        // Si el logout es exitoso, se puede devolver el mensaje de éxito
-        return data as Message;  // Aseguramos que el tipo de retorno sea Message
-
-    } catch (err) {
-        // Si hay un error, lo lanzamos para manejarlo en el lugar que llame a esta función
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
-    }
+// Refresh Token
+export async function refreshToken(): Promise<MessageResponse> {
+  try {
+    const response = await apiClient.get('/auth/refresh');
+    return response.data as MessageResponse;
+  } catch (err) {
+    throw new Error(err instanceof Error ? err.message : "Error desconocido");
+  }
 };
 
-export async function refreshToken(): Promise<Message> {
-    try {
-        const response = await fetch(`${fullHostName}/auth/refresh`, {
-            method: "GET",                // Usamos DELETE para el logout
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",          // Importante para enviar cookies
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");  // Error en caso de respuesta no OK
-        }
-
-        // Si el logout es exitoso, se puede devolver el mensaje de éxito
-        return data as Message;  // Aseguramos que el tipo de retorno sea Message
-
-    } catch (err) {
-        // Si hay un error, lo lanzamos para manejarlo en el lugar que llame a esta función
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
-    }
-};
-
-export async function verifyToken(): Promise<Message> {
-    try {
-        const response = await fetch(`${fullHostName}/auth/verify`, {
-            method: "GET",                // Usamos GET para el logout
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",          // Importante para enviar cookies
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");  // Error en caso de respuesta no OK
-        }
-
-        // Si el logout es exitoso, se puede devolver el mensaje de éxito
-        return data as Message;  // Aseguramos que el tipo de retorno sea Message
-
-    } catch (err) {
-        // Si hay un error, lo lanzamos para manejarlo en el lugar que llame a esta función
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
-    }
+// Verify Token
+export async function verifyToken(): Promise<MessageResponse> {
+  try {
+    const response = await apiClient.get('/auth/verify');
+    return response.data as MessageResponse;
+  } catch (err) {
+    throw new Error(err instanceof Error ? err.message : "Error desconocido");
+  }
 }

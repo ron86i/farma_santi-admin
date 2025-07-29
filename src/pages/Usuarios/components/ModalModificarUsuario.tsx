@@ -2,18 +2,22 @@ import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useObtenerRoles } from "@/hooks";
-import { UsuarioRequest } from "@/models";
-import { useUsuariosContext } from "@/context/usuariosContex";
-import { useModificarUsuario, useObtenerUsuarioById } from "@/hooks/useUsuario";
+import { Rol, UsuarioRequest } from "@/models";
+import { useUsuariosContext } from "@/context/usuarioContex";
+import { useModificarUsuario } from "@/hooks/useUsuario";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button, Input } from "@/components/ui";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
-import { CheckIcon, ChevronsUpDown } from "lucide-react";
+import { ChevronsUpDown } from "lucide-react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
+import { useQuery } from "@/hooks/generic";
+import { obtenerListaRoles, obtenerUsuarioById } from "@/services";
+import { CustomToast } from "@/components/toast";
+import dateFormat from "dateformat";
+import { toast } from "sonner";
 
 interface ModalModificarUsuarioProps {
   usuarioId: number;
@@ -77,11 +81,11 @@ type FormData = z.infer<typeof schema>;
 
 // Modal para modificar usuario
 export function ModalModificaUsuario({ usuarioId, open, onClose }: ModalModificarUsuarioProps) {
-  const { fetchRoles, roles } = useObtenerRoles();
-  const { fetchObtenerUsuario } = useObtenerUsuarioById();
-  const { fetchModificar } = useModificarUsuario();
+  const { fetch: fetchRoles, data: dataRoles } = useQuery(obtenerListaRoles);
+  const { fetch: fetchObtenerUsuario } = useQuery(obtenerUsuarioById);
+  const { mutate: modificarUsuario } = useModificarUsuario();
   const { usuarioAction, setUsuarioAction } = useUsuariosContext();
-
+  const [roles, setRoles] = useState<Rol[]>([])
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     mode: "onTouched",
@@ -92,42 +96,54 @@ export function ModalModificaUsuario({ usuarioId, open, onClose }: ModalModifica
   });
 
   const [rolesSelected, setRolesSelected] = useState<number[]>([]);
+  // Efecto separado para escuchar cuando los roles se obtienen
+  useEffect(() => {
+    if (dataRoles) {
+      setRoles(dataRoles);
+    }
+  }, [dataRoles]);
+
+
   useEffect(() => {
     if (!open) return;
 
     const fetchData = async () => {
-      await fetchRoles();
-      const u = await fetchObtenerUsuario(usuarioId);
+      try {
+        await fetchRoles();
+        const usuario = await fetchObtenerUsuario(usuarioId);
 
-      if (u?.persona) {
-        const rolesIds = u.roles.map((r) => r.id);
-        setRolesSelected(rolesIds);
+        if (usuario?.persona) {
+          const rolesIds = usuario.roles.map((r) => r.id);
+          setRolesSelected(rolesIds);
 
-        form.reset({
-          ci: u.persona.ci,
-          nombres: u.persona.nombres,
-          apellidoPaterno: u.persona.apellidoPaterno,
-          apellidoMaterno: u.persona.apellidoMaterno,
-          complemento: u.persona.complemento ?? undefined,
-          genero: u.persona.genero,
-          username: u.username,
-          roles: rolesIds,
-        });
+          form.reset({
+            ci: usuario.persona.ci,
+            nombres: usuario.persona.nombres,
+            apellidoPaterno: usuario.persona.apellidoPaterno,
+            apellidoMaterno: usuario.persona.apellidoMaterno,
+            complemento: usuario.persona.complemento ?? undefined,
+            genero: usuario.persona.genero,
+            username: usuario.username,
+            roles: rolesIds,
+          });
+        }
+      } catch (err) {
+        console.error("Error al cargar datos del usuario:", err);
       }
     };
 
     fetchData();
-  }, [open, usuarioId]);
+  }, [open]);
 
   useEffect(() => {
     form.setValue("roles", rolesSelected);
-  }, [rolesSelected]);
+  }, [rolesSelected, fetchRoles]);
 
   const handleRoleToggle = (roleId: number) => {
-    setRolesSelected((prev) =>
-      prev.includes(roleId)
-        ? prev.filter((id) => id !== roleId)
-        : [...prev, roleId]
+    setRolesSelected((prevSelected) =>
+      prevSelected.includes(roleId)
+        ? prevSelected.filter((id) => id !== roleId)
+        : [...prevSelected, roleId]
     );
   };
 
@@ -146,14 +162,32 @@ export function ModalModificaUsuario({ usuarioId, open, onClose }: ModalModifica
     };
 
     try {
-      await fetchModificar(usuarioId, usuarioRequest);
+      const response = await modificarUsuario(usuarioId, usuarioRequest);
+      toast.custom((t) => (
+        <CustomToast
+          t={t}
+          type="success"
+          title="Usuario modificado"
+          message={response?.message || "Error en el servidor"}
+          date={dateFormat(Date.now())}
+        />
+      ));
       setUsuarioAction(!usuarioAction);
       form.reset();
-      // onClose();
-    } catch (err) {
-      console.error("Error al modificar:", err);
+      // onClose(); // descomenta si quieres cerrar el modal al guardar
+    } catch (err: any) {
+      toast.custom((t) => (
+        <CustomToast
+          t={t}
+          type="error"
+          title="Error al modificar usuario"
+          message={err?.response?.message || err?.message || "Error en el servidor"}
+          date={dateFormat(Date.now())}
+        />
+      ));
     }
   };
+
   return (
     <Dialog modal defaultOpen={false} open={open} onOpenChange={onClose}>
       <DialogContent className="max-h-[96%] w-full overflow-auto sm:max-w-[600px] [&_[data-dialog-close]]:hidden"
@@ -161,9 +195,9 @@ export function ModalModificaUsuario({ usuarioId, open, onClose }: ModalModifica
         onEscapeKeyDown={(e) => e.preventDefault()}
       >
         <DialogHeader >
-          <DialogTitle>Actualizar usuario</DialogTitle>
+          <DialogTitle>Modificar usuario</DialogTitle>
           <DialogDescription>
-            Ingresa los datos del usuario en el sistema.
+            Actualizar los datos del usuario en el sistema.
           </DialogDescription>
         </DialogHeader>
         <Form {...form}>
@@ -171,19 +205,7 @@ export function ModalModificaUsuario({ usuarioId, open, onClose }: ModalModifica
             onSubmit={form.handleSubmit(onSubmit)}
             className="flex flex-col gap-2 text-black dark:text-white"
           >
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Usuario</FormLabel>
-                  <FormControl>
-                    <Input placeholder="usuario123" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
 
             <FormField
               control={form.control}
@@ -278,6 +300,19 @@ export function ModalModificaUsuario({ usuarioId, open, onClose }: ModalModifica
               )}
             />
 
+            <FormField
+              control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Usuario</FormLabel>
+                  <FormControl>
+                    <Input placeholder="usuario123" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
 
             <FormField
               control={form.control}
@@ -308,23 +343,23 @@ export function ModalModificaUsuario({ usuarioId, open, onClose }: ModalModifica
                         <CommandList>
                           <CommandEmpty>No se encontraron roles.</CommandEmpty>
                           <CommandGroup>
-                            {roles.map((role) => (
+                            {roles.map((rol) => (
                               <CommandItem
-                                key={role.id}
-                                onSelect={() => handleRoleToggle(role.id)}
+                                key={rol.id}
+                                onClick={() => handleRoleToggle(rol.id)}
+                                className="cursor-pointer"
                               >
                                 <div className="flex items-center space-x-2">
                                   <Checkbox
-                                    checked={rolesSelected.includes(role.id)}
-                                    onCheckedChange={() => handleRoleToggle(role.id)}
-                                    id={`role-${role.id}`}
-                                  >
-                                    <CheckIcon className="size-3.5 text-primary dark:text-primary" />
-
-                                  </Checkbox>
-                                  <label htmlFor={`role-${role.id}`}>{role.nombre}</label>
+                                    className="cursor-pointer"
+                                    checked={rolesSelected.includes(rol.id)}
+                                    onCheckedChange={() => handleRoleToggle(rol.id)}
+                                    id={`role-${rol.id}`}
+                                  />
+                                  <label htmlFor={`role-${rol.id}`} className="cursor-pointer">{rol.nombre}</label>
                                 </div>
                               </CommandItem>
+
                             ))}
                           </CommandGroup>
                         </CommandList>

@@ -1,19 +1,56 @@
-// Navbar.tsx
 import { Menu } from "lucide-react"
 import { ModeToggle } from "@/components"
+import { useQuery } from "@/hooks"
+import { obtenerMiUsuario } from "@/services"
+import { useEffect } from "react"
+import { toast } from "sonner"
+import { CustomToast } from "@/components/toast"
+import dateFormat from "dateformat"
+import { useUsuarioDetailContext } from "@/context/usuarioDetailContext"
+import { UsuarioDetail } from "@/models"
 
 interface NavbarProps {
   toggleSidebar: () => void
 }
 
 export function Navbar({ toggleSidebar }: NavbarProps) {
+  const { data: usuario, fetch, loading, error } = useQuery(obtenerMiUsuario)
+  const { setUsuario } = useUsuarioDetailContext();
+  useEffect(() => {
+    const fetchUser = async () => {
+      try {
+        const response = await fetch()
+        setUsuario(response as UsuarioDetail)
+      } catch (err: any) {
+      }
+    };
+    fetchUser()
+  }, [])
+
+  useEffect(() => {
+    if (error) {
+      toast.custom((t) => (
+        <CustomToast
+          t={t}
+          type="error"
+          title="Error al obtener información del usuario"
+          message={error}
+          date={dateFormat(Date.now())}
+        />
+      ));
+    }
+  }, [error]);
+  const nombre = usuario?.username ?? "Invitado"
+  const inicial = nombre[0]?.toUpperCase() ?? "?"
+
   return (
-    <header className=" bg-neutral-50 dark:bg-neutral-900 px-6 py-3 shadow-sm border-b border-neutral-200 dark:border-neutral-700">
+    <header className="bg-neutral-50 dark:bg-neutral-900 px-6 py-3 shadow-sm border-b border-neutral-200 dark:border-neutral-700">
       <div className="flex items-center justify-between">
+        {/* Sección izquierda */}
         <div className="flex items-center gap-4">
           <button
             onClick={toggleSidebar}
-            className="text-neutral-800 dark:text-neutral-100 cursor-pointer "
+            className="text-neutral-800 dark:text-neutral-100 cursor-pointer hover:scale-105 transition-transform"
           >
             <Menu className="size-6" />
           </button>
@@ -22,15 +59,31 @@ export function Navbar({ toggleSidebar }: NavbarProps) {
           </h1>
         </div>
 
-        <div className="flex items-center gap-3">
+        {/* Sección derecha */}
+        <div className="flex items-center gap-4">
           <ModeToggle />
-          <span className="text-sm text-neutral-700 dark:text-neutral-300">
-            admin
-          </span>
 
-          {/* Placeholder para avatar o dropdown */}
-          <div className="w-8 h-8 rounded-full bg-emerald-400 dark:bg-emerald-600 flex items-center justify-center text-white font-bold">
-            A
+          {error && (
+            <span className="text-sm text-red-500">Error al cargar usuario</span>
+          )}
+
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col text-end">
+              <span className="text-sm font-medium text-neutral-800 dark:text-neutral-100">
+                {loading ? "Cargando..." : nombre}
+              </span>
+              <span className="text-xs text-neutral-500 dark:text-neutral-400">
+                {loading ? "" : "Conectado"}
+              </span>
+            </div>
+
+            <div className="relative">
+              <div className="select-none w-9 h-9 rounded-full bg-gradient-to-br from-blue-500 to-indigo-600 flex items-center justify-center text-white font-semibold text-sm shadow-lg ring-2 ring-blue-300 dark:ring-indigo-700 transition-all">
+                {inicial}
+              </div>
+              <span className="absolute bottom-0 right-0 w-2.5 h-2.5 bg-lime-400 border-2 border-white dark:border-neutral-900 rounded-full" />
+            </div>
+
           </div>
         </div>
       </div>

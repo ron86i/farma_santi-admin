@@ -15,9 +15,10 @@ import {
   } from "lucide-react";
 //   import { ModalModificaUsuario } from "./ModalModificarUsuario";
   import { useState } from "react";
-import { DialogModificarEstado } from "./DialogModificarEstado";
 import { ModalModificarRol } from "./ModalModificarRol";
 import { ModalDetalleRol } from "./ModalDetalleRol";
+import { DialogHabilitarRol } from "./DialogHabilitarRol";
+import { DialogDeshabilitarRol } from "./DialogDeshabilitarRol";
 //   import { ModalDetalleUsuario } from "./ModalDetalleUsuario";
 //   import { DialogModificarStatus } from "./DialogModificarStatus";
   
@@ -27,9 +28,10 @@ import { ModalDetalleRol } from "./ModalDetalleRol";
   };
   
   export function MenuAcciones({ rolId, deletedAt }: MenuAccionesProps) {
-    const [openModalModificar, setOpenModalModificar] = useState(false);
-    const [openModalVer, setOpenModalVer] = useState(false);
-    const [openDialogModificarEstado, setOpenDialogModificarStatus] = useState(false)
+  const [openModalModificar, setOpenModalModificar] = useState(false);
+  const [openModalVer, setOpenModalVer] = useState(false);
+  const [openDialogHabilitar, setOpenDialogHabilitar] = useState(false)
+  const [openDialogDeshabilitar, setOpenDialogDeshabilitar] = useState(false)
     return (
       <>
         <DropdownMenu>
@@ -47,15 +49,15 @@ import { ModalDetalleRol } from "./ModalDetalleRol";
   
             <DropdownMenuItem onClick={() => setOpenModalModificar(true)}>
               <Pencil className="w-4 h-4 mr-2 text-muted-foreground" />
-              Editar
+              Modificar
             </DropdownMenuItem>
   
-            <DropdownMenuItem disabled={deletedAt?false:true} onClick={() => setOpenDialogModificarStatus(true)}>
+            <DropdownMenuItem disabled={deletedAt?false:true} onClick={() => setOpenDialogHabilitar(true)}>
               <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
               Habilitar
             </DropdownMenuItem>
   
-            <DropdownMenuItem disabled={deletedAt?true:false} onClick={() => setOpenDialogModificarStatus(true)}>
+            <DropdownMenuItem disabled={deletedAt?true:false} onClick={() => setOpenDialogDeshabilitar(true)}>
               <Ban className="w-4 h-4 mr-2 text-yellow-500" />
               Deshabilitar
             </DropdownMenuItem>
@@ -76,9 +78,12 @@ import { ModalDetalleRol } from "./ModalDetalleRol";
             onClose={() => setOpenModalVer(false)}
           />
         )}
-        {openDialogModificarEstado && 
-        <DialogModificarEstado open={openDialogModificarEstado} onClose={() => { setOpenDialogModificarStatus(false) }} deletedAt={deletedAt} rolId={rolId} />
-        }
+      {openDialogHabilitar && 
+        <DialogHabilitarRol open={openDialogHabilitar} onClose={() => { setOpenDialogHabilitar(false) }} deletedAt={deletedAt} rolId={rolId} />
+      }
+      {openDialogDeshabilitar && 
+        <DialogDeshabilitarRol open={openDialogDeshabilitar} onClose={() => { setOpenDialogDeshabilitar(false) }} rolId={rolId} />
+      }
       </>
     );
   }

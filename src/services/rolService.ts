@@ -1,93 +1,63 @@
 import { Rol, RolRequest } from "@/models/rol";
-import { fullHostName } from ".";
-import { Message } from "@/models";
+import { MessageResponse } from "@/models";
+import apiClient, { parseAxiosError } from './axiosClient';
 
+// Obtener lista de roles
 export async function obtenerListaRoles(): Promise<Rol[]> {
-    try {
-        const response = await fetch(`${fullHostName}/roles`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");
-        }
+  try {
+    const response = await apiClient.get('/roles');
+    return response.data as Rol[];
+  } catch (err) {
+    throw parseAxiosError(err, "Error al obtener la lista de roles");
+  }
+}
 
-        return data as Rol[];
-
-    } catch (err) {
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
-    }
-};
+// Obtener rol por id
 export async function obtenerRolById(rolId: number): Promise<Rol> {
-    try {
-        const response = await fetch(`${fullHostName}/roles/${rolId}`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");
-        }
-        return data as Rol;
-    } catch (err) {
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
-    }
-};
-
-export async function modificarEstadoRolById(rolId: number): Promise<Message> {
-    try {
-        const response = await fetch(`${fullHostName}/roles/status/${rolId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");
-        }
-        return data as Message;
-    } catch (err) {
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
-    }
+  try {
+    const response = await apiClient.get(`/roles/${rolId}`);
+    return response.data as Rol;
+  } catch (err) {
+    throw parseAxiosError(err, "Error al obtener el rol");
+  }
 }
 
-export async function registrarRol(rolRequest:RolRequest): Promise<Message> {
-    try {
-        const response = await fetch(`${fullHostName}/roles`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body:JSON.stringify(rolRequest)
-        });
-        
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");
-        }
-        return data as Message;
-    } catch (err) {
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
-    }
+// Habilitar rol por id
+export async function habilitarRolById(rolId: number): Promise<MessageResponse> {
+  try {
+    const response = await apiClient.patch(`/roles/estado/habilitar/${rolId}`);
+    return response.data as MessageResponse;
+  } catch (err) {
+    throw parseAxiosError(err, "Error al habilitar el rol");
+  }
 }
 
-export async function modificarRol(rolId:number,rolRequest: RolRequest): Promise<Message> {
-    try {
-        const response = await fetch(`${fullHostName}/roles/${rolId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(rolRequest),
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");
-        }
+// Deshabilitar rol por id
+export async function deshabilitarRolById(rolId: number): Promise<MessageResponse> {
+  try {
+    const response = await apiClient.patch(`/roles/estado/deshabilitar/${rolId}`);
+    return response.data as MessageResponse;
+  } catch (err) {
+    throw parseAxiosError(err, "Error al deshabilitar el rol");
+  }
+}
 
-        return data as Message;
-    } catch (err) {
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
-    }
+// Registrar rol
+export async function registrarRol(data: RolRequest): Promise<MessageResponse> {
+  try {
+    const response = await apiClient.post("/roles", data);
+    return response.data;
+  } catch (err) {
+    throw parseAxiosError(err, "Error al registrar rol");
+  }
+}
+
+// Modificar rol
+export async function modificarRol(rolId: number, rolRequest: RolRequest): Promise<MessageResponse> {
+  try {
+    const response = await apiClient.put(`/roles/${rolId}`, rolRequest);
+    return response.data as MessageResponse;
+  } catch (err) {
+    throw parseAxiosError(err, "Error al modificar rol");
+  }
 }
