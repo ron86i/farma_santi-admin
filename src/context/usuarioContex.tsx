@@ -2,24 +2,24 @@
 import React, { createContext, useState, useContext } from "react";
 
 // Tipo de datos que vas a compartir
-type UsuarioContextType = {
+type UsuariosContextType = {
   usuarioAction: boolean;
   setUsuarioAction: (value: boolean) => void;
 };
 
 // Creamos el contexto con valor por defecto
-export const UsuariosContext = createContext<UsuarioContextType | undefined>(undefined);
+export const UsuariosContext = createContext<UsuariosContextType | undefined>(undefined);
 
 // Provider
-type UsuarioProviderProps = {
+type UsuariosProviderProps = {
   children: React.ReactNode;
 };
 
-export function UsuarioProvider({ children }: UsuarioProviderProps) {
+export function UsuariosProvider({ children }: UsuariosProviderProps) {
   const [usuarioAction, setUsuarioAction] = useState(false);
 
   return (
-    <UsuariosContext.Provider value={{ usuarioAction: usuarioAction, setUsuarioAction: setUsuarioAction }}>
+    <UsuariosContext.Provider value={{ usuarioAction, setUsuarioAction }}>
       {children}
     </UsuariosContext.Provider>
   );
@@ -28,6 +28,6 @@ export function UsuarioProvider({ children }: UsuarioProviderProps) {
 // Hook para usar fácilmente el contexto
 export function useUsuariosContext() {
   const context = useContext(UsuariosContext);
-  if (!context) throw new Error("useUsuariosContext debe usarse dentro de <UsuarioProvider>");
+  if (!context) throw new Error("useUsuariosContext debe usarse dentro de <UsuariosProvider>");
   return context;
 }

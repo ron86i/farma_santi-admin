@@ -4,5 +4,6 @@ export * from './Input';
 export * from './ProtectedRoute';
 export * from './Spinner';
 export * from './mode-toggle';
-export * from './search';
+export * from './search-input';
 export * from './theme-provider';
+export * from './ProtectedLogin';

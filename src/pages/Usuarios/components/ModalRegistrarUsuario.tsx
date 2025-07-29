@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { z } from "zod";
-import { useRoles } from "@/hooks";
 import { useRegistrarUsuario } from "@/hooks/useUsuario";
-import { UsuarioRequest } from "@/models";
+import { Rol, UsuarioRequest } from "@/models";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUsuariosContext } from "@/context/usuarioContex";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -13,15 +12,20 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { useForm } from "react-hook-form";
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { CheckIcon, ChevronsUpDown } from "lucide-react";
-
+import { ChevronsUpDown } from "lucide-react";
+import { useQuery } from "@/hooks/generic";
+import { obtenerListaRoles } from "@/services";
+import { generarPDFUsuario } from "@/utils/pdf";
+import { CustomToast } from "@/components/toast";
+import dateFormat from "dateformat";
+import { toast } from "sonner";
 const schema = z.object({
   username: z
-  .string({
-    required_error: "Campo obligatorio",
-  })
-  .trim()
-  .min(1, { message: "Por favor, ingresa un nombre de usuario" }),
+    .string({
+      required_error: "Campo obligatorio",
+    })
+    .trim()
+    .min(1, { message: "Por favor, ingresa un nombre de usuario" }),
   ci: z
     .coerce
     .number({
@@ -75,15 +79,11 @@ interface ModalRegistrarUsuarioProps {
 }
 
 export function ModalRegistrarUsuario({ open, onClose }: ModalRegistrarUsuarioProps) {
-  const { fetchRoles, roles } = useRoles();
-  const { fetchRegistrar } = useRegistrarUsuario();
+  const { fetch: obtenerRoles, data } = useQuery(obtenerListaRoles);
+  const { mutate: registrarUsuario } = useRegistrarUsuario();
   const { usuarioAction, setUsuarioAction } = useUsuariosContext();
   const [rolesSelected, setRolesSelected] = useState<number[]>([]);
-
-  // Obtener roles
-  useEffect(() => {
-    fetchRoles().catch(() => { });
-  }, []);
+  const [roles, setRoles] = useState<Rol[]>([])
 
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
@@ -93,6 +93,17 @@ export function ModalRegistrarUsuario({ open, onClose }: ModalRegistrarUsuarioPr
       roles: [],
     }
   });
+  // Obtener roles
+  useEffect(() => {
+    obtenerRoles()
+  }, []);
+
+  // Obtener roles
+  useEffect(() => {
+    setRoles(data ?? [])
+  }, [data]);
+
+
 
   const onSubmit = async (data: FormData) => {
     const usuarioRequest: UsuarioRequest = {
@@ -109,12 +120,38 @@ export function ModalRegistrarUsuario({ open, onClose }: ModalRegistrarUsuarioPr
     };
 
     try {
-      await fetchRegistrar(usuarioRequest);
+      // 1. Registrar usuario
+      const response = await registrarUsuario(usuarioRequest);
+
+      // 2. Generar PDF del usuario (si el backend retorna el detalle)
+      if (response) {
+        generarPDFUsuario(response.data); // Aquí generas el PDF
+      }
+      toast.custom((t) => (
+        <CustomToast
+          t={t}
+          type="success"
+          title="Usuario registrado"
+          message={response?.message || "Error en el servidor"}
+          date={dateFormat(Date.now())}
+        />
+      ));
+      // 3. Actualizar estado y cerrar modal
       setUsuarioAction(!usuarioAction);
       form.reset();
-      if (onClose) onClose(); // Cierra el modal si se proporciona la función
-    } catch (err) {
-      console.error("Error al registrar:", err);
+      if (onClose) {
+        onClose(); // Cierra el modal
+      }
+    } catch (err:any) {
+      toast.custom((t) => (
+        <CustomToast
+          t={t}
+          type="error"
+          title="Error al registrar usuario"
+          message={err?.response?.message || err?.message || "Error en el servidor"}
+          date={dateFormat(Date.now())}
+        />
+      ));
     }
   };
 
@@ -151,19 +188,7 @@ export function ModalRegistrarUsuario({ open, onClose }: ModalRegistrarUsuarioPr
             onSubmit={form.handleSubmit(onSubmit)}
             className="flex flex-col gap-2 text-black dark:text-white"
           >
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Usuario</FormLabel>
-                  <FormControl>
-                    <Input placeholder="usuario123" {...field} />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
+
 
             <FormField
               control={form.control}
@@ -260,6 +285,20 @@ export function ModalRegistrarUsuario({ open, onClose }: ModalRegistrarUsuarioPr
 
             <FormField
               control={form.control}
+              name="username"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Usuario</FormLabel>
+                  <FormControl>
+                    <Input placeholder="usuario123" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
               name="roles"
               render={() => (
                 <FormItem>
@@ -287,24 +326,24 @@ export function ModalRegistrarUsuario({ open, onClose }: ModalRegistrarUsuarioPr
                         <CommandList>
                           <CommandEmpty>No se encontraron roles.</CommandEmpty>
                           <CommandGroup>
-                            {roles.map((role) => (
-                              <CommandItem
-                                key={role.id}
-                                onSelect={() => handleRoleToggle(role.id)}
-                              >
-                                <div className="flex items-center space-x-2">
+                            {roles.map((rol) => (
+                              <CommandItem key={rol.id} className="cursor-pointer">
+                                <div className="flex items-center space-x-2 w-full">
                                   <Checkbox
-                                    value={role.id}
-                                    checked={rolesSelected.includes(role.id)}
-                                    onCheckedChange={() => handleRoleToggle(role.id)}
-                                    id={`role-${role.id}`}
+                                    id={`role-${rol.id}`}
+                                    value={rol.id}
+                                    checked={rolesSelected.includes(rol.id)}
+                                    onCheckedChange={() => handleRoleToggle(rol.id)}
+                                  />
+                                  <label
+                                    htmlFor={`role-${rol.id}`}
+                                    className="cursor-pointer w-full"
                                   >
-                                    <CheckIcon className="size-3.5 text-primary dark:text-primary" />
-
-                                  </Checkbox>
-                                  <label htmlFor={`role-${role.id}`}>{role.nombre}</label>
+                                    {rol.nombre}
+                                  </label>
                                 </div>
                               </CommandItem>
+
                             ))}
                           </CommandGroup>
                         </CommandList>

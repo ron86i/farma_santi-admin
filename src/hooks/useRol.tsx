@@ -1,27 +1,28 @@
-import { useState } from "react";
-import { Rol } from "@/models";
-import { obtenerListaroles } from "@/services";
+import { RolRequest } from "@/models";
+import { deshabilitarRolById, habilitarRolById, modificarRol, registrarRol } from "@/services";
+import { useMutation } from "./generic";
 
-export function useRoles() {
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [roles, setRoles] = useState<Rol[]>([]);
 
-  const fetchRoles = async () => {
-    setLoading(true);
-    setError("Error de conexión al servidor");
+export function useHabilitarRolById() {
+  return useMutation((rolId: number)=>{
+    return habilitarRolById(rolId)
+  })
+}
 
-    try {
-      const data = await obtenerListaroles(); // usa tu servicio directamente
-      setRoles(data);
-      return data;
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Error desconocido");
-      throw err;
-    } finally {
-      setLoading(false);
-    }
-  };
+export function useDeshabilitarRolById() {
+  return useMutation((rolId: number)=>{
+    return deshabilitarRolById(rolId)
+  })
+}
 
-  return { fetchRoles, roles, loading, error };
+export function useRegistrarRol() {
+  return useMutation((request: RolRequest)=>{
+    return registrarRol(request)
+  })
+}
+
+export function useModificarRol() {
+  return useMutation((rolId: number,request: RolRequest)=>{
+    return modificarRol(rolId,request)
+  })
 }

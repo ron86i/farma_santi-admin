@@ -8,14 +8,15 @@ interface ButtonLinkProps {
   to: string;
   title: string;
   nameIcon: IconName;
+  className?:string
 }
 
-export function ButtonLink({ onClick, to, nameIcon, title }: ButtonLinkProps) {
+export function ButtonLink({ onClick, to, nameIcon, title,className}: ButtonLinkProps) {
   return (
     <Button
       variant="ghost"
       asChild
-      className="w-full justify-start text-left hover:bg-primary/20 transition-colors duration-300 ease-in-out"
+      className={`w-full justify-start text-left hover:bg-primary/20 transition-colors duration-300 ease-in-out ${className}`}
     >
       <Link
         to={to}

@@ -3,6 +3,7 @@ import { RolInfo } from "./rol";
 export interface UsuarioInfo {
   id: number;
   username: string;
+  estado:string;
   persona: Persona;
   createdAt: Date;
   updatedAt: Date;
@@ -36,9 +37,17 @@ export interface PersonaRequest {
 export interface UsuarioDetail {
   id: number;
   username: string;
+  password:string;
+  estado:string;
   createdAt: Date;
   updatedAt: Date;
   deletedAt?: Date | null;
   persona: Persona
   roles: RolInfo[]
+}
+
+export interface UsuarioSimple {
+  id: number;
+  username: string;
+  estado:string;
 }

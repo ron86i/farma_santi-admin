@@ -1,8 +1,9 @@
 import { Dialog, DialogContent, Separator } from "@/components/ui";
-import { useObtenerUsuarioById } from "@/hooks/useUsuario";
 import { DialogTitle } from "@radix-ui/react-dialog";
 import { useEffect } from "react";
 import dateFormat from "dateformat";
+import { useQuery } from "@/hooks/generic";
+import { obtenerUsuarioById } from "@/services";
 
 
 interface ModalDetalleUsuarioProps {
@@ -13,11 +14,11 @@ interface ModalDetalleUsuarioProps {
 
 export function ModalDetalleUsuario({ usuarioId, open, onClose }: ModalDetalleUsuarioProps) {
 
-    const { fetchObtenerUsuario, usuario } = useObtenerUsuarioById();
+    const { fetch, data: usuario } = useQuery(obtenerUsuarioById);
 
     useEffect(() => {
         const obtenerDatos = async () => {
-            await fetchObtenerUsuario(usuarioId);
+            await fetch(usuarioId);
         };
         obtenerDatos();
     }, [usuarioId]); // Ejecutar cuando cambie el ID
@@ -26,7 +27,7 @@ export function ModalDetalleUsuario({ usuarioId, open, onClose }: ModalDetalleUs
     return (
         <Dialog modal open={open} onOpenChange={onClose}>
             <DialogContent
-                className="w-full overflow-auto sm:max-w-[600px] [&_[data-dialog-close]]:hidden"
+                className="w-full max-h-screen overflow-auto sm:max-w-[600px]"
                 onInteractOutside={(e) => e.preventDefault()}
                 onEscapeKeyDown={(e) => e.preventDefault()}
             >
@@ -85,7 +86,7 @@ export function ModalDetalleUsuario({ usuarioId, open, onClose }: ModalDetalleUs
 
                 <Separator />
                 <div>
-                    <p className="font-semibold">Fecha de creación:</p>
+                    <p className="font-semibold">Fecha de registro:</p>
                     {usuario?.createdAt &&
                         <p> {dateFormat(usuario.createdAt)}</p>
                     }
@@ -101,18 +102,15 @@ export function ModalDetalleUsuario({ usuarioId, open, onClose }: ModalDetalleUs
                 <Separator />
                 <div>
                     <p className="font-semibold">Estado:</p>
-                    {usuario?.deletedAt ? (
-                        <div>
-                            <p className="text-red-500">Eliminado</p>
+                    <div>
+                        <p className={usuario?.estado === "Activo" ? "text-green-600" : "text-red-500"}>{usuario?.estado}</p>
+                        {usuario?.deletedAt &&
                             <p className="text-sm text-muted-foreground">
                                 Fecha de eliminación: {dateFormat(usuario.deletedAt, "dddd d 'de' mmmm yyyy, h:MM TT")}
                             </p>
-                        </div>
-                    ) : (
-                        <p className="text-green-600">Activo</p>
-                    )}
+                        }
+                    </div>
                 </div>
-
             </DialogContent>
         </Dialog>
     )

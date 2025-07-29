@@ -1,101 +1,82 @@
-import { Message, UsuarioDetail, UsuarioInfo, UsuarioRequest } from "@/models";
-import { fullHostName } from ".";
+import { MessageDataResponse, MessageResponse, UsuarioDetail, UsuarioInfo, UsuarioRequest } from "@/models";
+import apiClient, { parseAxiosError } from './axiosClient';
 
+// Obtener lista de usuarios
 export async function obtenerListaUsuarios(): Promise<UsuarioInfo[]> {
     try {
-        const response = await fetch(`${fullHostName}/usuarios`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",          // Importante para enviar cookies
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");  // Error en caso de respuesta no OK
-        }
-
-        return data as UsuarioInfo[];  // Aseguramos que el tipo de retorno sea Message
-
+        const response = await apiClient.get('/usuarios');
+        return response.data as UsuarioInfo[];
     } catch (err) {
-        // Si hay un error, lo lanzamos para manejarlo en el lugar que llame a esta función
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
+        throw parseAxiosError(err, "Error al listar usuarios");
     }
 };
 
-
-export async function registrarUsuario(usuarioRequest: UsuarioRequest): Promise<Message> {
+// Registrar usuario
+export async function registrarUsuario(usuarioRequest: UsuarioRequest): Promise<MessageDataResponse<UsuarioDetail>> {
     try {
-        const response = await fetch(`${fullHostName}/usuarios`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(usuarioRequest),
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");  // Error en caso de respuesta no OK
-        }
-
-        return data as Message;  // Aseguramos que el tipo de retorno sea Message
+        const response = await apiClient.post('/usuarios', usuarioRequest);
+        return response.data as MessageDataResponse<UsuarioDetail>;
     } catch (err) {
-        // Si hay un error, lo lanzamos para manejarlo en el lugar que llame a esta función
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
+        throw parseAxiosError(err, "Error al registrar usuario");
+    }
+};
+
+// Modificar usuario
+export async function modificarUsuario(usuarioId: number, usuarioRequest: UsuarioRequest): Promise<MessageResponse> {
+    try {
+        const response = await apiClient.put(`/usuarios/${usuarioId}`, usuarioRequest);
+        return response.data as MessageResponse;
+    } catch (err) {
+        throw parseAxiosError(err, "Error al modificar usuario");
+    }
+};
+
+// Obtener usuario por id
+export async function obtenerUsuarioById(usuarioId: number): Promise<UsuarioDetail> {
+    try {
+        const response = await apiClient.get(`/usuarios/${usuarioId}`);
+        return response.data as UsuarioDetail;
+    } catch (err) {
+        throw parseAxiosError(err, "Error al obtener usuario");
+    }
+};
+
+// Habilitar usuario por id
+export async function habilitarUsuarioById(usuarioId: number): Promise<MessageResponse> {
+    try {
+        const response = await apiClient.patch(`/usuarios/estado/habilitar/${usuarioId}`);
+        return response.data as MessageResponse;
+    } catch (err) {
+        throw parseAxiosError(err, "Error al habilitar usuario");
     }
 }
 
-export async function modificarUsuario(usuarioId:number,usuarioRequest: UsuarioRequest): Promise<Message> {
+// Deshabilitar usuario por id
+export async function deshabilitarUsuarioById(usuarioId: number): Promise<MessageResponse> {
     try {
-        const response = await fetch(`${fullHostName}/usuarios/${usuarioId}`, {
-            method: "PUT",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-            body: JSON.stringify(usuarioRequest),
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");  // Error en caso de respuesta no OK
-        }
-
-        return data as Message;  // Aseguramos que el tipo de retorno sea Message
+        const response = await apiClient.patch(`/usuarios/estado/deshabilitar/${usuarioId}`);
+        return response.data as MessageResponse;
     } catch (err) {
-        // Si hay un error, lo lanzamos para manejarlo en el lugar que llame a esta función
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
+        throw parseAxiosError(err, "Error al deshabilitar usuario");
     }
 }
 
-export async function obtenerUsuarioById(usuarioId:number): Promise<UsuarioDetail> {
+//Obtener información actual del usuario
+export async function obtenerMiUsuario(): Promise<UsuarioDetail> {
     try {
-        const response = await fetch(`${fullHostName}/usuarios/${usuarioId}`, {
-            method: "GET",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");  // Error en caso de respuesta no OK
-        }
-
-        return data as UsuarioDetail;  // Aseguramos que el tipo de retorno sea UsuarioDetail
+        const response = await apiClient.get(`/usuarios/me`);
+        return response.data as UsuarioDetail;
     } catch (err) {
-        // Si hay un error, lo lanzamos para manejarlo en el lugar que llame a esta función
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
+        throw parseAxiosError(err, "Error al obtener información del usuario");
     }
-}
 
-export async function modificarEstatusUsuarioById(usuarioId:number): Promise<Message> {
+}
+//Restablecer password por id de usuario
+export async function restablecerPasswordById(usuarioId: number): Promise<MessageDataResponse<UsuarioDetail>> {
     try {
-        const response = await fetch(`${fullHostName}/usuarios/status/${usuarioId}`, {
-            method: "PATCH",
-            headers: { "Content-Type": "application/json" },
-            credentials: "include",
-        });
-        const data = await response.json();
-        if (!response.ok) {
-            throw new Error(data.message || "Error en el servidor");  // Error en caso de respuesta no OK
-        }
-
-        return data as Message;  // Aseguramos que el tipo de retorno sea UsuarioDetail
+        const response = await apiClient.patch(`/usuarios/password/restablecer/${usuarioId}`);
+        return response.data as MessageDataResponse<UsuarioDetail>;
     } catch (err) {
-        // Si hay un error, lo lanzamos para manejarlo en el lugar que llame a esta función
-        throw new Error(err instanceof Error ? err.message : "Error desconocido");
+        throw parseAxiosError(err, "Error al restablecer contraseña");
     }
-}
+};
