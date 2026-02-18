@@ -1,39 +1,40 @@
 import { useQuery } from "@/hooks/generic";
+import { MessageResponse } from "@/models";
 import { Nothing } from "@/pages";
 import { verifyToken } from "@/services";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { Outlet, useNavigate } from "react-router";
 
 interface ProtectedRouteProps {
   children?: React.ReactNode;
 }
 
-export function ProtectedRoute({ children}: ProtectedRouteProps) {
+export function ProtectedRoute({ children }: ProtectedRouteProps) {
   const navigate = useNavigate();
-  const { fetch, error, loading } = useQuery(verifyToken);
-  const [isChecked, setIsChecked] = useState(false);
+  const { fetch, loading } = useQuery(verifyToken);
 
   useEffect(() => {
     const checkSession = async () => {
       try {
-        await fetch();
-        if (error == null) {
-          setIsChecked(true);
-        } else {
-          navigate("/logout");
+        const response:void|MessageResponse = await fetch();
+
+        if (!response) {
+          // ❌ No hay sesión → forzar logout
+          navigate("/logout", { replace: true });
         }
-      } catch (error) {
-        console.error("Error verificando el token:", error);
-        navigate("/login");
+        // ✅ Si response es true, simplemente dejamos que renderice
+      } catch {
+        // En caso de error, también lo mandamos al logout
+        navigate("/logout", { replace: true });
       }
     };
 
     checkSession();
   }, []);
 
-  if (loading || !isChecked) {
-    return <Nothing />; // Mientras se verifica el token, mostramos una pantalla de carga
+  if (loading) {
+    return <Nothing />; // Pantalla de carga mientras se verifica
   }
 
-  return children ? children : <Outlet />; // Una vez verificado, renderizamos el contenido
+  return children ? children : <Outlet />;
 }

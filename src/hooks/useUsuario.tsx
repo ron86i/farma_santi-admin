@@ -1,6 +1,6 @@
 
 import { deshabilitarUsuarioById, habilitarUsuarioById, modificarUsuario, registrarUsuario, restablecerPasswordById } from "@/services/usuarioService"; // Asegúrate de tener esta función importada
-import type { UsuarioRequest } from "@/models"; // Ajusta según tus tipos reales
+import type { UsuarioRequest, UsuarioResetPassword } from "@/models"; // Ajusta según tus tipos reales
 import { useMutation } from "./generic";
 
 export function useRegistrarUsuario() {
@@ -28,7 +28,7 @@ export function useDeshabilitarUsuarioById() {
 }
 
 export function useRestablecerPasswordUsuarioById() {
-  return useMutation((usuarioId: number) => {
-    return restablecerPasswordById(usuarioId)
+  return useMutation((usuarioId: number,request:UsuarioResetPassword) => {
+    return restablecerPasswordById(usuarioId,request)
   })
 }

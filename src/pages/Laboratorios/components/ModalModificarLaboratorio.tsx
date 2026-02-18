@@ -1,20 +1,7 @@
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage,
-} from "@/components/ui/form";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Button, Input } from "@/components/ui";
 import { useForm } from "react-hook-form";
 import { LaboratorioRequest } from "@/models";
@@ -27,26 +14,37 @@ import { CustomToast } from "@/components/toast";
 import dateFormat from "dateformat";
 import { toast } from "sonner";
 
-// ---- Validación -----------------------------------------------------------
 const schema = z.object({
   nombre: z
-    .string({ required_error: "Campo obligatorio" })
+    .string({
+      required_error: "Campo obligatorio"
+    })
     .trim()
-    .min(1, { message: "Ingresa el nombre del laboratorio" }),
+    .min(1, { message: "Por favor, ingresa un nombre del laboratorio" }),
   direccion: z
     .string().optional(),
+  representante: z.string().optional(),
+  email: z.union([
+    z.literal(''),
+    z.string().email("Debe se un email válido"),
+  ]),
+  telefono: z.coerce.number({
+    invalid_type_error: "El teléfono debe ser un número.",
+  }).optional(),
+  celular: z.coerce.number({
+    required_error: "El teléfono es obligatorio.",
+    invalid_type_error: "El teléfono debe ser un número.",
+  }).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
 
-// ---- Props ----------------------------------------------------------------
 interface ModalModificarLaboratorioProps {
   laboratorioId: number;
   open: boolean;
   onClose?: () => void;
 }
 
-// ---- Componente -----------------------------------------------------------
 export function ModalModificarLaboratorio({
   laboratorioId,
   open,
@@ -59,7 +57,7 @@ export function ModalModificarLaboratorio({
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     mode: "onTouched",
-    defaultValues: { nombre: "", direccion: "" },
+    defaultValues: { nombre: "", direccion: "",email:"" },
   });
 
   // 1) Cargar laboratorio al abrir el modal
@@ -87,6 +85,10 @@ export function ModalModificarLaboratorio({
     const laboratorioRequest: LaboratorioRequest = {
       nombre: data.nombre,
       direccion: data.direccion!!,
+      representante: data.representante || "",
+      celular: data.celular,
+      email: data.email,
+      telefono: data.telefono
     };
 
     try {
@@ -164,7 +166,58 @@ export function ModalModificarLaboratorio({
                 </FormItem>
               )}
             />
-
+            <FormField
+              control={form.control}
+              name="representante"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Representante</FormLabel>
+                  <FormControl>
+                    <Input placeholder="nombre completo" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Correo electrónico</FormLabel>
+                  <FormControl>
+                    <Input placeholder="example@hotmail.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="telefono"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Teléfono</FormLabel>
+                  <FormControl>
+                    <Input placeholder="1234567" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="celular"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Celular</FormLabel>
+                  <FormControl>
+                    <Input placeholder="12345678" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
             <Button type="submit" className="mt-4 px-4 py-2 transition">
               Guardar
             </Button>

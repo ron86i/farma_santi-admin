@@ -2,29 +2,32 @@ import { Badge } from "@/components/ui/badge";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useProveedoresContext } from "@/context";
 import { ProveedorInfo } from "@/models";
-
 import { getNestedValue } from "@/utils";
 import dateFormat from "dateformat";
 import { ArrowUp, ArrowDown } from "lucide-react";
 import { useEffect, useState } from "react";
 import { MenuAcciones } from "./MenuAcciones";
+import { Button } from "@/components/ui/button";
 
 interface TablaProveedoresProps {
     list: ProveedorInfo[];
     loading: boolean;
     filter?: string;
+    pageSize?: number; // 👈 tamaño de página configurable
 }
-export function TablaProveedores({ list, loading, filter }: TablaProveedoresProps) {
 
+export function TablaProveedores({ list, loading, filter, pageSize = 5 }: TablaProveedoresProps) {
     const [sorted, setSorted] = useState<ProveedorInfo[]>([]);
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-    const { proveedorAction } = useProveedoresContext()
+    const [currentPage, setCurrentPage] = useState(1);
+
+    const { proveedorAction } = useProveedoresContext();
+
     useEffect(() => {
-        // 1. Clonamos los datos entrantes
         let updated = [...list];
 
-        // 2. Si ya había columna elegida, la aplicamos de nuevo
+        // aplica ordenamiento
         if (sortKey) {
             updated.sort((a, b) => {
                 const valueA = getNestedValue(a, sortKey);
@@ -44,9 +47,9 @@ export function TablaProveedores({ list, loading, filter }: TablaProveedoresProp
             });
         }
 
-        // 3. Actualizamos el estado
         setSorted(updated);
-    }, [list, proveedorAction]);
+        setCurrentPage(1); // 👈 resetea a primera página si cambia la lista
+    }, [list, proveedorAction, sortKey, sortDirection]);
 
     const handleSort = (key: string) => {
         let direction: "asc" | "desc" | null = "asc";
@@ -73,10 +76,10 @@ export function TablaProveedores({ list, loading, filter }: TablaProveedoresProp
             let valueB = getNestedValue(b, key);
 
             if (key === "deletedAt") {
-                // Si deletedAt es null o no
                 valueA = a.deletedAt ? "Inactivo" : "Activo";
                 valueB = b.deletedAt ? "Inactivo" : "Activo";
             }
+
             if (typeof valueA === "string" && typeof valueB === "string") {
                 return direction === "asc"
                     ? valueA.localeCompare(valueB)
@@ -105,6 +108,7 @@ export function TablaProveedores({ list, loading, filter }: TablaProveedoresProp
         { label: "Acciones", key: "acciones", sort: false },
     ];
 
+    // 🔹 aplica filtro por texto
     const searchText = filter?.toLowerCase();
     const filteredList = sorted.filter((item) =>
         [
@@ -114,11 +118,16 @@ export function TablaProveedores({ list, loading, filter }: TablaProveedoresProp
             item.representante,
             item.direccion,
             dateFormat(item.createdAt),
-            item.deletedAt ? "Inactivo" : "Activo"
+            item.deletedAt ? "Inactivo" : "Activo",
         ]
             .filter(Boolean)
             .some((field) => field?.toString().toLowerCase().includes(searchText ?? ""))
     );
+
+    // 🔹 aplica paginación después del filtro
+    const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+    const startIndex = (currentPage - 1) * pageSize;
+    const paginatedList = filteredList.slice(startIndex, startIndex + pageSize);
 
     return (
         <div className="border rounded-md">
@@ -151,19 +160,17 @@ export function TablaProveedores({ list, loading, filter }: TablaProveedoresProp
                                 {/* <Spinner /> */}
                             </TableCell>
                         </TableRow>
-                    ) : (
-                        filteredList.map((item) => (
+                    ) : paginatedList.length > 0 ? (
+                        paginatedList.map((item) => (
                             <TableRow key={item.id}>
                                 <TableCell>{item.id}</TableCell>
                                 <TableCell>{item.nit}</TableCell>
                                 <TableCell>{item.razonSocial}</TableCell>
                                 <TableCell>{item.representante}</TableCell>
                                 <TableCell>{item.direccion}</TableCell>
+                                <TableCell>{dateFormat(item.createdAt)}</TableCell>
                                 <TableCell>
-                                    {dateFormat(item.createdAt)}
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant={item.estado === 'Activo' ? 'default' : 'destructive'}>
+                                    <Badge variant={item.estado === "Activo" ? "default" : "destructive"}>
                                         {item.estado}
                                     </Badge>
                                 </TableCell>
@@ -172,9 +179,36 @@ export function TablaProveedores({ list, loading, filter }: TablaProveedoresProp
                                 </TableCell>
                             </TableRow>
                         ))
+                    ) : (
+                        <TableRow>
+                            <TableCell colSpan={columns.length} className="text-center">
+                                No se encontraron resultados
+                            </TableCell>
+                        </TableRow>
                     )}
                 </TableBody>
             </Table>
+
+            {/* 🔹 Controles de paginación siempre visibles */}
+            <div className="flex justify-center items-center gap-4 p-2">
+                <Button
+                    variant="outline"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                    Anterior
+                </Button>
+                <span>
+                    Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                    variant="outline"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >
+                    Siguiente
+                </Button>
+            </div>
         </div>
     );
 }

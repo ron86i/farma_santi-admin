@@ -22,3 +22,8 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+*.zip
+*.tar
+.env
+.env.development
+.env.production

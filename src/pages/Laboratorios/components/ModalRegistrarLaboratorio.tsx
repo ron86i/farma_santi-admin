@@ -1,21 +1,8 @@
 import { z } from "zod";
 import { useRegistrarLaboratorio } from "@/hooks"; // Hook personalizado para registrar laboratorio
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle
-} from "@/components/ui/dialog";
-import {
-  Form,
-  FormControl,
-  FormField,
-  FormItem,
-  FormLabel,
-  FormMessage
-} from "@/components/ui/form";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Button, Input } from "@/components/ui";
 import { useForm } from "react-hook-form";
 import { LaboratorioRequest } from "@/models"; // Modelo del request
@@ -32,7 +19,19 @@ const schema = z.object({
     .trim()
     .min(1, { message: "Por favor, ingresa un nombre del laboratorio" }),
   direccion: z
-    .string().optional()
+    .string().optional(),
+  representante: z.string().optional(),
+  email: z.union([
+    z.literal(''),
+    z.string().email("Debe se un email válido"),
+  ]),
+  telefono: z.coerce.number({
+    invalid_type_error: "El teléfono debe ser un número.",
+  }).optional(),
+  celular: z.coerce.number({
+    required_error: "El teléfono es obligatorio.",
+    invalid_type_error: "El teléfono debe ser un número.",
+  }).optional(),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -50,14 +49,19 @@ export function ModalRegistrarLaboratorio({ open, onClose }: ModalRegistrarLabor
     resolver: zodResolver(schema),
     mode: "onTouched",
     defaultValues: {
-      nombre: ""
+      nombre: "",
+      email:"",
     }
   });
 
   const onSubmit = async (data: FormData) => {
     const laboratorioRequest: LaboratorioRequest = {
       nombre: data.nombre,
-      direccion: data.direccion!!
+      direccion: data.direccion!!,
+      representante: data.representante || "",
+      celular: data.celular,
+      email: data.email,
+      telefono: data.telefono
     };
 
     try {
@@ -128,9 +132,61 @@ export function ModalRegistrarLaboratorio({ open, onClose }: ModalRegistrarLabor
               name="direccion"
               render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Dirección del laboratorio</FormLabel>
+                  <FormLabel>Dirección</FormLabel>
                   <FormControl>
                     <Input placeholder="Av. La Paz" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="representante"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Representante</FormLabel>
+                  <FormControl>
+                    <Input placeholder="nombre completo" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="email"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Correo electrónico</FormLabel>
+                  <FormControl>
+                    <Input placeholder="example@hotmail.com" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="telefono"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Teléfono</FormLabel>
+                  <FormControl>
+                    <Input placeholder="1234567" {...field} />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="celular"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Celular</FormLabel>
+                  <FormControl>
+                    <Input placeholder="12345678" {...field} />
                   </FormControl>
                   <FormMessage />
                 </FormItem>

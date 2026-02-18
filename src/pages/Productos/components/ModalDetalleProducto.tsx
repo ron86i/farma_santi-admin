@@ -61,7 +61,6 @@ export function ModalDetalleProducto({ productoId, open, onClose }: ModalDetalle
                     </ScrollArea>
 
                     {/* ScrollArea para el contenido de detalles */}
-                    {/* <ScrollArea className="flex-1 max-h-96"> */}
                     <div className="space-y-4 text-sm pr-4 overflow-y-auto">
                         <Separator />
                         <div className="flex gap-x-2">
@@ -83,7 +82,18 @@ export function ModalDetalleProducto({ productoId, open, onClose }: ModalDetalle
                                 <p className="text-sm text-muted-foreground">No hay principios activos registrados.</p>
                             )}
                         </div>
+                        <Separator />
 
+                        <div>
+                            <p className="font-semibold">Presentación:</p>
+                            <p>{producto?.presentacion.nombre}</p>
+                        </div>
+                        <Separator />
+
+                        <div>
+                            <p className="font-semibold">Unidades por presentación:</p>
+                            <p>{producto?.unidadesPresentacion}</p>
+                        </div>
                         <Separator />
 
                         <div>
@@ -97,7 +107,7 @@ export function ModalDetalleProducto({ productoId, open, onClose }: ModalDetalle
                         </div>
                         <Separator />
                         <div>
-                            <p className="font-semibold">Precio de compra promedio:</p>
+                            <p className="font-semibold">Precio de compra:</p>
                             <p>{producto?.precioCompra} Bs.</p>
                         </div>
 

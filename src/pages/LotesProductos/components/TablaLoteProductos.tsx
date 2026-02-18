@@ -14,19 +14,23 @@ import { LoteProductoInfo } from "@/models";
 import { useLoteProductosContext } from "@/context/loteProductoLote";
 import { MenuAcciones } from "./MenuAcciones";
 import { Badge } from "@/components/ui";
+import { Button } from "@/components/ui/button";
 
 type TablaLoteProductosProps = {
     lista: LoteProductoInfo[];
     loading: boolean;
     filter?: string;
+    pageSize?: number;
 };
 
-export function TablaLoteProductos({ lista, loading, filter }: TablaLoteProductosProps) {
+export function TablaLoteProductos({ lista, loading, filter, pageSize = 6 }: TablaLoteProductosProps) {
     const [sortedData, setSortedData] = useState<LoteProductoInfo[]>([]);
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
     const { loteProductoAction } = useLoteProductosContext();
+    const [currentPage, setCurrentPage] = useState(1);
 
+    // Ordenamiento
     useEffect(() => {
         let updated = [...lista];
 
@@ -50,19 +54,15 @@ export function TablaLoteProductos({ lista, loading, filter }: TablaLoteProducto
         }
 
         setSortedData(updated);
-    }, [lista, loteProductoAction]);
+    }, [lista, loteProductoAction, sortKey, sortDirection]);
 
     const handleSort = (key: string) => {
         let direction: "asc" | "desc" | null = "asc";
 
         if (sortKey === key) {
-            if (sortDirection === "asc") {
-                direction = "desc";
-            } else if (sortDirection === "desc") {
-                direction = null;
-            } else {
-                direction = "asc";
-            }
+            if (sortDirection === "asc") direction = "desc";
+            else if (sortDirection === "desc") direction = null;
+            else direction = "asc";
         }
 
         if (direction === null) {
@@ -72,24 +72,6 @@ export function TablaLoteProductos({ lista, loading, filter }: TablaLoteProducto
             return;
         }
 
-        const sorted = [...lista].sort((a, b) => {
-            const valueA = getNestedValue(a, key);
-            const valueB = getNestedValue(b, key);
-
-            if (typeof valueA === "string" && typeof valueB === "string") {
-                return direction === "asc"
-                    ? valueA.localeCompare(valueB)
-                    : valueB.localeCompare(valueA);
-            }
-
-            if (typeof valueA === "number" && typeof valueB === "number") {
-                return direction === "asc" ? valueA - valueB : valueB - valueA;
-            }
-
-            return 0;
-        });
-
-        setSortedData(sorted);
         setSortKey(key);
         setSortDirection(direction);
     };
@@ -103,8 +85,9 @@ export function TablaLoteProductos({ lista, loading, filter }: TablaLoteProducto
         { label: "Acciones", key: "acciones", sort: false },
     ];
 
+    // Filtro
     const searchText = filter?.toLowerCase();
-    const filteredLaboratorios = sortedData.filter((item) =>
+    const filteredList = sortedData.filter((item) =>
         [
             item.id,
             item.lote,
@@ -116,6 +99,11 @@ export function TablaLoteProductos({ lista, loading, filter }: TablaLoteProducto
             .filter(Boolean)
             .some((field) => field?.toString().toLowerCase().includes(searchText ?? ""))
     );
+
+    // Paginación
+    const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+    const startIndex = (currentPage - 1) * pageSize;
+    const paginatedList = filteredList.slice(startIndex, startIndex + pageSize);
 
     return (
         <div className="border rounded-md">
@@ -145,20 +133,28 @@ export function TablaLoteProductos({ lista, loading, filter }: TablaLoteProducto
                     {loading ? (
                         <TableRow>
                             <TableCell colSpan={columns.length} className="text-center">
-                                {/* Cargando... */}
+                                Cargando...
+                            </TableCell>
+                        </TableRow>
+                    ) : filteredList.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={columns.length} className="text-center">
+                                No se encontraron resultados
                             </TableCell>
                         </TableRow>
                     ) : (
-                        filteredLaboratorios.map((item) => (
+                        paginatedList.map((item) => (
                             <TableRow key={item.id}>
                                 <TableCell>{item.lote}</TableCell>
                                 <TableCell>{dateFormat(item?.fechaVencimiento, "dd/mm/yyyy", true)}</TableCell>
-                                <TableCell>                                                                <div className="flex flex-col items-start">
-                                    <span className="font-medium">{item.producto.nombreComercial}</span>
-                                    <span className="text-xs text-muted-foreground">
-                                        {item.producto.formaFarmaceutica} • {item.producto.laboratorio}
-                                    </span>
-                                </div></TableCell>
+                                <TableCell>
+                                    <div className="flex flex-col items-start">
+                                        <span className="font-medium">{item.producto.nombreComercial}</span>
+                                        <span className="text-xs text-muted-foreground">
+                                            {item.producto.formaFarmaceutica} • {item.producto.laboratorio}
+                                        </span>
+                                    </div>
+                                </TableCell>
                                 <TableCell align="right">{item.stock}</TableCell>
                                 <TableCell>
                                     <Badge
@@ -182,6 +178,27 @@ export function TablaLoteProductos({ lista, loading, filter }: TablaLoteProducto
                     )}
                 </TableBody>
             </Table>
+
+            {/* Paginación siempre visible */}
+            <div className="flex justify-center items-center gap-4 p-2">
+                <Button
+                    variant="outline"
+                    disabled={currentPage === 1 || loading || filteredList.length === 0}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                    Anterior
+                </Button>
+                <span>
+                    Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                    variant="outline"
+                    disabled={currentPage === totalPages || loading || filteredList.length === 0}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >
+                    Siguiente
+                </Button>
+            </div>
         </div>
     );
 }

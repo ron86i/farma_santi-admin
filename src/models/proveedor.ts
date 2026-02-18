@@ -2,6 +2,7 @@ export interface Proveedor {
   id: number;
   nit: number;
   razonSocial: string;
+  estado: string;
   representante: string;
   direccion: string | null;
   telefono: number | null;

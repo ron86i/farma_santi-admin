@@ -8,7 +8,7 @@ export function MainLayout() {
   useAutoRefreshToken("exp-access-token");
   const { usuario, clearUsuario } = useUsuarioDetailContext();
 
-  const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Cambiado a false para móvil
 
   // Inicializa roles desde usuario o vacío
   const [rolesNombres, setRolesNombres] = useState<string[]>(() =>
@@ -27,16 +27,16 @@ export function MainLayout() {
   }, []);
 
   return (
-    <div className="flex overflow-auto transition-discrete duration-100">
-      {sidebarOpen && (
-        <LayoutSidebar
-          key={rolesNombres.join(",")} // Forzar remount cuando roles cambian
-          toggleSidebar={toggleSidebar}
-          role={rolesNombres}
-          clearUsuario={clearUsuario}
-        />
-      )}
-      <div className="flex flex-col flex-1 w-full h-screen">
+    <div className="flex h-screen overflow-hidden">
+      <LayoutSidebar
+        key={rolesNombres.join(",")}
+        role={rolesNombres}
+        clearUsuario={clearUsuario}
+        isOpen={sidebarOpen}
+        toggleSidebar={toggleSidebar}
+      />
+      
+      <div className="flex flex-col flex-1 w-full overflow-hidden">
         <Navbar toggleSidebar={toggleSidebar} />
         <main className="flex-1 p-4 bg-neutral-50 dark:bg-neutral-900 overflow-auto">
           <Outlet />

@@ -3,14 +3,17 @@ import apiClient, { parseAxiosError } from "./axiosClient";
 import { MessageResponse } from "@/models";
 
 // Obtener lista de productos
-export async function obtenerListaProductos(): Promise<ProductoInfo[]> {
+export async function obtenerListaProductos(filtro?: string): Promise<ProductoInfo[]> {
+    const query = filtro ? `?${filtro}` : "";
+
     try {
-        const response = await apiClient.get('/productos');
-        return response.data as ProductoInfo[];
+        const response = await apiClient.get<ProductoInfo[]>(`/productos${query}`);
+        return response.data;
     } catch (err) {
         throw parseAxiosError(err, "Error al obtener lista de productos");
     }
-};
+}
+
 
 // Registrar producto
 export async function registrarProducto(request: ProductoRequest, images: File[]): Promise<MessageResponse> {

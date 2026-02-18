@@ -9,9 +9,10 @@ type MenuAccionesProps = {
     ventaId: number;
     deletedAt: Date | null;
     estado: string;
+    urlFactura?: string;
 };
 
-export function MenuAcciones({ ventaId, deletedAt, estado }: MenuAccionesProps) {
+export function MenuAcciones({ ventaId, deletedAt, estado, urlFactura }: MenuAccionesProps) {
     const [openModalVer, setOpenModalVer] = useState(false);
     const [openModalAnular, setOpenModalAnular] = useState(false);
 
@@ -35,13 +36,25 @@ export function MenuAcciones({ ventaId, deletedAt, estado }: MenuAccionesProps) 
                         Anular
                     </DropdownMenuItem>
 
+                    <DropdownMenuItem
+                        disabled={!urlFactura}
+                        onClick={() => {
+                            if (urlFactura) {
+                                window.open(urlFactura, "_blank"); // abre en nueva pestaña
+                            }
+                        }}
+                    >
+                        <Eye className="w-4 h-4 mr-2 text-green-500" />
+                        Abrir factura
+                    </DropdownMenuItem>
+
                 </DropdownMenuContent>
             </DropdownMenu>
             {openModalVer &&
-                <ModalDetalleVenta ventaId={ventaId} open={openModalVer} onClose={()=>{setOpenModalVer(false)}}/>
+                <ModalDetalleVenta ventaId={ventaId} open={openModalVer} onClose={() => { setOpenModalVer(false) }} />
             }
             {openModalAnular &&
-                <ModalAnularVenta ventaId={ventaId} open={openModalAnular} onClose={()=>{setOpenModalAnular(false)}}/>
+                <ModalAnularVenta ventaId={ventaId} open={openModalAnular} onClose={() => { setOpenModalAnular(false) }} />
             }
         </>
     );

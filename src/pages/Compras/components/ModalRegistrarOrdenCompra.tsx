@@ -6,8 +6,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
 import { useQuery, useRegistrarOrdenCompra } from "@/hooks";
-import { CompraRequest } from "@/models/compra";
-import { obtenerListaProductos, obtenerListaProveedores, obtenerLotesByProductoId } from "@/services";
+import { CompraRequest, DetalleCompraRequest } from "@/models/compra";
+import { obtenerListaLaboratoriosDisponibles, obtenerListaProductos, obtenerLotesByProductoId } from "@/services";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useEffect, useState, useRef } from "react";
 import { useForm, useFieldArray, useWatch } from "react-hook-form";
@@ -28,25 +28,38 @@ interface ModalRegistrarOrdenCompraProps {
     onClose?: () => void;
     open: boolean;
 }
-
+// Esquema para el formulario
 const schema = z.object({
-    proveedorId: z.number().gt(0, { message: "Selecciona un proveedor" }),
+    laboratorioId: z.number().gt(0, { message: "Selecciona un laboratorio" }),
     comentario: z.string().optional(),
     detalles: z.array(
         z.object({
             productoId: z.string().uuid({ message: "" }),
-            cantidad: z.coerce.number().gt(0, { message: "" }),
-            precio: z.coerce.number().gt(0, { message: "" }),
-            loteProductoId: z.number().gt(0, { message: "" }),
+            precioCompra: z.coerce.number().gt(0, { message: "" }),
+            precioVenta: z.coerce.number().gt(0, { message: "" }),
+            lotesProductos: z.array(
+                z.object({
+                    loteProductoId: z.number().gt(0, { message: "" }),
+                    cantidad: z.coerce.number().gt(0, { message: "" }), // La cantidad sigue siendo el total de unidades
+                })
+            ).min(1, { message: "Debe agregar al menos un lote" }),
+
         })
+            .refine(
+                (data) => data.precioVenta > data.precioCompra,
+                {
+                    message: "",
+                    path: ["precioVenta"],
+                })
     ),
 });
+
 
 type FormData = z.infer<typeof schema>;
 
 export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrdenCompraProps) {
     const { fetch: fetchProductos, data: dataProductos } = useQuery(obtenerListaProductos);
-    const { fetch: fetchProveedores, data: dataProveedores } = useQuery(obtenerListaProveedores);
+    const { fetch: fetchLaboratorios, data: dataLaboratorios } = useQuery(obtenerListaLaboratoriosDisponibles);
     const { fetch: fetchLotesProducto, data: dataLoteProducto } = useQuery(obtenerLotesByProductoId);
     const { mutate: registrarOrdenCompra } = useRegistrarOrdenCompra();
     const { compraAction, setCompraAction } = useComprasContext()
@@ -55,15 +68,15 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
     const [currentProductoIdForLote, setCurrentProductoIdForLote] = useState<string>("");
     const [_, setCurrentIndexForLote] = useState<number>(-1);
     const [openProductoIndex, setOpenProductoIndex] = useState<number | null>(null);
-    const [openLoteIndex, setOpenLoteIndex] = useState<number | null>(null);
-    const [popoverOpenProveedor, setPopoverOpenProveedor] = useState(false);
+    const [openLoteIndex, setOpenLoteIndex] = useState<string | null>(null);
+    const [popoverOpenLaboratorio, setPopoverOpenLaboratorio] = useState(false);
     const [openModalDetalleCompra, setOpenModalDetalleCompra] = useState(false)
     const compraId = useRef(0)
     const form = useForm<FormData>({
         resolver: zodResolver(schema),
-        mode: "onTouched",
+        mode: "onChange",
         defaultValues: {
-            proveedorId: 0,
+            laboratorioId: 0,
             comentario: "",
             detalles: [],
         },
@@ -73,7 +86,8 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
         control: form.control,
         name: "detalles",
     });
-
+    const [preciosPorPresentacion, setPreciosPorPresentacion] = useState<Record<number, number>>({});
+    const [preciosInicializados, setPreciosInicializados] = useState<Record<number, boolean>>({});
     // Estado para almacenar lotes por índice detalle
     const [lotesPorDetalle, setLotesPorDetalle] = useState<Record<number, LoteProductoSimple[]>>({});
 
@@ -112,6 +126,29 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
             }
         }
     }, [dataLoteProducto]);
+
+    // Función para calcular precio por unidad desde precio de presentación
+    const calcularPrecioUnidad = (precioPresentacion: number, unidadesPresentacion: number): number => {
+        if (unidadesPresentacion <= 1) return precioPresentacion;
+        return Number((precioPresentacion / unidadesPresentacion).toFixed(2));
+    };
+
+    // Función para manejar cambio en precio de presentación
+    const handlePrecioPresentacionChange = (
+        index: number,
+        valor: string,
+        unidadesPresentacion: number
+    ) => {
+        const precioPresentacion = Number(valor) || 0;
+        setPreciosPorPresentacion(prev => ({
+            ...prev,
+            [index]: precioPresentacion
+        }));
+
+        // Calcular y actualizar precio por unidad
+        const precioUnidad = calcularPrecioUnidad(precioPresentacion, unidadesPresentacion);
+        form.setValue(`detalles.${index}.precioCompra`, precioUnidad);
+    };
 
     // Efecto para detectar cambios en loteProductoAction y refrescar lotes
     useEffect(() => {
@@ -164,8 +201,6 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
     const onChangeProducto = async (productoId: string, index: number) => {
         // Actualizamos productoId en el formulario
         form.setValue(`detalles.${index}.productoId`, productoId);
-        // Limpiamos loteProductoId porque cambia el producto
-        form.setValue(`detalles.${index}.loteProductoId`, 0);
 
         // Configurar referencias
         lastIndexRef.current = index;
@@ -217,23 +252,45 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
     };
 
 
-    const onSubmit = async (data: CompraRequest) => {
+    const onSubmit = async (data: FormData) => {
         try {
-            const response = await registrarOrdenCompra(data)
+            // Convertir la estructura del formulario al modelo esperado por el backend
+            const detallesCompra: DetalleCompraRequest[] = data.detalles.flatMap((detalle) =>
+                detalle.lotesProductos.map((lote) => ({
+                    cantidad: lote.cantidad,
+                    precioCompra: detalle.precioCompra, // o detalle.precioVenta si deseas enviar precio de venta
+                    precioVenta: detalle.precioVenta,
+                    loteProductoId: lote.loteProductoId,
+                }))
+            );
+
+            const request: CompraRequest = {
+                laboratorioId: data.laboratorioId,
+                comentario: data.comentario,
+                detalles: detallesCompra,
+            };
+
+            // Llamada al servicio
+            const response = await registrarOrdenCompra(request);
+
             toast.custom((t) => (
                 <CustomToast
                     t={t}
                     type="success"
                     title="Orden de compra registrada"
-                    message={response?.message || "Error en el servidor"}
+                    message={response?.message || "Operación exitosa"}
                     date={dateFormat(Date.now())}
                 />
             ));
-            if (response?.data){
-                compraId.current = response.data.id
+
+            if (response?.data) {
+                compraId.current = response.data.id;
             }
-            setOpenModalDetalleCompra(true)
-            setCompraAction(!compraAction)
+
+            setOpenModalDetalleCompra(true);
+            setCompraAction(!compraAction);
+
+            // Reset de formulario y estados locales
             form.reset();
             setLotesPorDetalle({});
             setLoadingLotes({});
@@ -250,11 +307,12 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
         }
     };
 
+
     useEffect(() => {
-        // Carga inicial de proveedores y productos
+        // Carga inicial de laboratorio
         const fetchData = async () => {
             try {
-                await Promise.all([fetchProductos(), fetchProveedores()]);
+                await Promise.all([fetchLaboratorios()]);
             } catch (err) {
                 console.error("Error cargando datos:", err);
             }
@@ -267,17 +325,34 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
         control: form.control,
         name: "detalles",
     });
-
-    // Calcular total de la orden en tiempo real
+    // Calcular total de la orden en tiempo real por lote usando precio del producto
     const calcularTotal = () => {
         if (!watchedDetalles) return 0;
+
         return watchedDetalles.reduce((total, detalle) => {
-            const cantidad = Number(detalle?.cantidad) || 0;
-            const precio = Number(detalle?.precio) || 0;
-            return total + (cantidad * precio);
+            const subtotalDetalle = detalle.lotesProductos.reduce((subtotal, lote) => {
+                const cantidad = Number(lote.cantidad) || 0;
+                const precio = Number(detalle.precioCompra) || 0; // precio del producto
+                return subtotal + cantidad * precio;
+            }, 0);
+
+            return total + subtotalDetalle;
         }, 0);
     };
 
+
+
+
+
+    // Estado para el laboratorio seleccionado
+    const selectedLaboratorioId = form.watch("laboratorioId");
+
+    // Efecto para cargar productos solo cuando cambia el laboratorio
+    useEffect(() => {
+        if (selectedLaboratorioId) {
+            fetchProductos(`laboratorioId=${selectedLaboratorioId}`);
+        }
+    }, [selectedLaboratorioId]);
     return (
         <>
             <Dialog modal open={open} onOpenChange={onClose}>
@@ -294,7 +369,7 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                             <div>
                                 <DialogTitle className="text-xl font-semibold">Nueva Orden de Compra</DialogTitle>
                                 <DialogDescription className="text-sm text-muted-foreground">
-                                    Registra una nueva orden de compra con los detalles de productos y proveedores.
+                                    Registra una nueva orden de compra con los detalles de productos y la.
                                 </DialogDescription>
                             </div>
                         </div>
@@ -302,77 +377,81 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
 
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
-                            {/* Información del Proveedor */}
+                            {/* Información del Laboratorio */}
                             <Card className="border-l-4 border-l-blue-500">
                                 <CardHeader>
                                     <CardTitle className="text-lg flex items-center gap-2">
                                         <Package className="h-5 w-5" />
-                                        Información del Proveedor
+                                        Información del Laboratorio
                                     </CardTitle>
                                 </CardHeader>
                                 <CardContent>
                                     <FormField
                                         control={form.control}
-                                        name="proveedorId"
+                                        name="laboratorioId"
                                         render={({ field }) => {
-                                            const selectedProveedor = dataProveedores?.find((c) => c.id === field.value);
+                                            dataLaboratorios?.find((c) => c.id === field.value);
 
                                             return (
-                                                <FormItem className="flex flex-col">
-                                                    <FormLabel className="text-sm font-medium">Proveedor *</FormLabel>
-                                                    <Popover
-                                                        open={popoverOpenProveedor}
-                                                        onOpenChange={setPopoverOpenProveedor}
-                                                    >
-                                                        <PopoverTrigger asChild>
-                                                            <Button
-                                                                variant="outline"
-                                                                role="combobox"
-                                                                className={cn(
-                                                                    "w-full justify-between h-11",
-                                                                    !selectedProveedor && "text-muted-foreground"
-                                                                )}
-                                                            >
-                                                                {selectedProveedor ? (
-                                                                    <div className="flex flex-col text-left">
-                                                                        <span className="text-sm font-medium">{selectedProveedor.razonSocial}</span>
-                                                                        <span className="text-xs text-muted-foreground">NIT: {selectedProveedor.nit}</span>
-                                                                    </div>
-                                                                ) : (
-                                                                    "Seleccione un proveedor"
-                                                                )}
-                                                                <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                                                            </Button>
-                                                        </PopoverTrigger>
-                                                        <PopoverContent className="w-full p-0">
-                                                            <Command>
-                                                                <CommandInput placeholder="Buscar proveedor..." />
-                                                                <CommandEmpty>No se encontró proveedor</CommandEmpty>
-                                                                <CommandGroup>
-                                                                    {dataProveedores?.map((proveedor) => (
-                                                                        <CommandItem
-                                                                            key={proveedor.id}
-                                                                            value={proveedor.razonSocial}
-                                                                            onSelect={() => {
-                                                                                form.setValue("proveedorId", proveedor.id);
-                                                                                setPopoverOpenProveedor(false);
-                                                                            }}
-                                                                        >
-                                                                            <div className="flex flex-col text-left">
-                                                                                <span className="text-sm font-medium">{proveedor.razonSocial}</span>
-                                                                                <span className="text-xs text-muted-foreground">NIT: {proveedor.nit}</span>
-                                                                            </div>
-                                                                            {field.value === proveedor.id && (
-                                                                                <Check className="ml-auto h-4 w-4 text-primary" />
+                                                <FormField
+                                                    control={form.control}
+                                                    name="laboratorioId"
+                                                    render={({ field }) => {
+                                                        const selectedLaboratorio = dataLaboratorios?.find((c) => c.id === field.value);
+
+                                                        return (
+                                                            <FormItem className="flex flex-col">
+                                                                <FormLabel className="text-sm font-medium">Laboratorio *</FormLabel>
+                                                                <Popover open={popoverOpenLaboratorio} onOpenChange={setPopoverOpenLaboratorio}>
+                                                                    <PopoverTrigger asChild>
+                                                                        <Button
+                                                                            variant="outline"
+                                                                            role="combobox"
+                                                                            className={cn(
+                                                                                "w-full justify-between h-11",
+                                                                                !selectedLaboratorio && "text-muted-foreground"
                                                                             )}
-                                                                        </CommandItem>
-                                                                    ))}
-                                                                </CommandGroup>
-                                                            </Command>
-                                                        </PopoverContent>
-                                                    </Popover>
-                                                    <FormMessage />
-                                                </FormItem>
+                                                                        >
+                                                                            {selectedLaboratorio ? selectedLaboratorio.nombre : "Seleccione un laboratorio"}
+                                                                            <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                        </Button>
+                                                                    </PopoverTrigger>
+
+                                                                    <PopoverContent className="w-full p-0">
+                                                                        <Command>
+                                                                            <CommandInput placeholder="Buscar laboratorio..." />
+                                                                            <CommandEmpty>No se encontró laboratorio</CommandEmpty>
+                                                                            <CommandGroup>
+                                                                                {dataLaboratorios?.map((lab) => (
+                                                                                    <CommandItem
+                                                                                        key={lab.id}
+                                                                                        value={lab.nombre}
+                                                                                        onSelect={() => {
+                                                                                            // Actualizamos laboratorio
+                                                                                            form.setValue("laboratorioId", lab.id);
+
+                                                                                            // 🔹 Reseteamos detalles de productos y lotes
+                                                                                            form.setValue("detalles", []);
+
+                                                                                            setPopoverOpenLaboratorio(false);
+                                                                                        }}
+                                                                                    >
+                                                                                        <div className="flex flex-col text-left">
+                                                                                            <span className="text-sm font-medium">{lab.nombre}</span>
+                                                                                        </div>
+                                                                                        {field.value === lab.id && <Check className="ml-auto h-4 w-4 text-primary" />}
+                                                                                    </CommandItem>
+                                                                                ))}
+                                                                            </CommandGroup>
+                                                                        </Command>
+                                                                    </PopoverContent>
+                                                                </Popover>
+                                                                <FormMessage />
+                                                            </FormItem>
+                                                        );
+                                                    }}
+                                                />
+
                                             );
                                         }}
                                     />
@@ -404,12 +483,18 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                     ) : (
                                         <div className="space-y-4">
                                             {fields.map((item, index) => {
-                                                const cantidad = form.getValues(`detalles.${index}.cantidad`) || 0;
-                                                const precio = form.getValues(`detalles.${index}.precio`) || 0;
-                                                const subtotal = cantidad * precio;
-                                                const currentProductoId = form.getValues(`detalles.${index}.productoId`);
-                                                const isLoadingLotes = loadingLotes[currentProductoId] || false;
+                                                const detalle = form.getValues(`detalles.${index}`);
+                                                let cantidad = 0
+                                                detalle.lotesProductos.forEach((l) => {
+                                                    cantidad += l.cantidad
+                                                })
+                                                const subtotal = cantidad * detalle.precioCompra;
+                                                const currentProductoId = detalle.productoId
 
+                                                const selectedProducto = dataProductos?.find((p) => p.id === currentProductoId);
+                                                const unidadesPorPresentacion = selectedProducto?.unidadesPresentacion ?? 1;
+                                                const nombrePresentacion = selectedProducto?.presentacion?.nombre || "Presentación";
+                                                const nombreUnidadBase = "Ud";
                                                 return (
                                                     <Card key={item.id} className="p-0 bg-neutral-50 dark:bg-neutral-900 border-dashed">
                                                         <CardContent className="p-4">
@@ -428,17 +513,39 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                                                 </Button>
                                                             </div>
 
-                                                            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                                                            {/* Producto + Precios */}
+
+                                                            <div className="flex flex-col gap-4 w-full mt-4 border border-gray-200 bg-muted/30 rounded-2xl p-4 shadow-sm">
                                                                 {/* Producto */}
                                                                 <FormField
                                                                     control={form.control}
                                                                     name={`detalles.${index}.productoId`}
                                                                     render={({ field }) => {
                                                                         const selectedProducto = dataProductos?.find((c) => c.id === field.value);
+                                                                        // Solo establecer precios iniciales una vez por índice cuando se selecciona un producto
+                                                                        if (selectedProducto && field.value && !preciosInicializados[index]) {
+                                                                            setTimeout(() => {
+                                                                                form.setValue(`detalles.${index}.precioCompra`, selectedProducto.precioCompra || 0);
+                                                                                form.setValue(`detalles.${index}.precioVenta`, selectedProducto.precioVenta || 0);
+                                                                                setPreciosInicializados(prev => ({
+                                                                                    ...prev,
+                                                                                    [index]: true
+                                                                                }));
+                                                                            }, 0);
+                                                                        }
+                                                                        // Productos ya seleccionados en otros índices
+                                                                        const productosSeleccionados = form.getValues("detalles")
+                                                                            .map((d: any) => d.productoId)
+                                                                            .filter((id: string) => id && id !== field.value);
+
+                                                                        // Filtrar productos para que no aparezcan los repetidos
+                                                                        const productosDisponibles = dataProductos?.filter(
+                                                                            (p) => !productosSeleccionados.includes(p.id)
+                                                                        );
 
                                                                         return (
-                                                                            <FormItem className="flex flex-col">
-                                                                                <FormLabel className="text-sm font-medium">Producto *</FormLabel>
+                                                                            <FormItem className="flex-1">
+                                                                                <FormLabel className="text-sm font-medium text-gray-700">Producto *</FormLabel>
                                                                                 <Popover
                                                                                     open={openProductoIndex === index}
                                                                                     onOpenChange={(open) => setOpenProductoIndex(open ? index : null)}
@@ -448,14 +555,16 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                                                                             variant="outline"
                                                                                             role="combobox"
                                                                                             className={cn(
-                                                                                                "w-full justify-between h-11",
+                                                                                                "w-full justify-between h-11 text-left text-sm border-gray-300 bg-white hover:bg-gray-50 transition rounded-xl",
                                                                                                 !selectedProducto && "text-muted-foreground"
                                                                                             )}
                                                                                         >
                                                                                             {selectedProducto ? (
                                                                                                 <div className="flex flex-col text-left">
-                                                                                                    <span className="text-sm font-medium">{selectedProducto.nombreComercial}</span>
-                                                                                                    <span className="text-xs text-muted-foreground">
+                                                                                                    <span className="text-sm font-medium text-gray-800">
+                                                                                                        {selectedProducto.nombreComercial}
+                                                                                                    </span>
+                                                                                                    <span className="text-xs text-gray-500">
                                                                                                         {selectedProducto.formaFarmaceutica} • {selectedProducto.laboratorio}
                                                                                                     </span>
                                                                                                 </div>
@@ -465,12 +574,14 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                                                                             <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                                                                         </Button>
                                                                                     </PopoverTrigger>
-                                                                                    <PopoverContent className="w-full p-0">
+                                                                                    <PopoverContent className="w-full p-0 rounded-xl shadow-lg border border-gray-200">
                                                                                         <Command>
                                                                                             <CommandInput placeholder="Buscar producto..." />
-                                                                                            <CommandEmpty>No se encontró producto</CommandEmpty>
+                                                                                            <CommandEmpty className="p-2 text-center text-gray-500">
+                                                                                                No se encontró producto
+                                                                                            </CommandEmpty>
                                                                                             <CommandGroup>
-                                                                                                {dataProductos?.map((p) => (
+                                                                                                {productosDisponibles?.map((p) => (
                                                                                                     <CommandItem
                                                                                                         key={p.id}
                                                                                                         value={p.nombreComercial}
@@ -478,16 +589,15 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                                                                                             onChangeProducto(p.id, index);
                                                                                                             setOpenProductoIndex(null);
                                                                                                         }}
+                                                                                                        className="flex justify-between items-center py-2 px-3 hover:bg-primary/10 rounded-lg"
                                                                                                     >
                                                                                                         <div className="flex flex-col text-left">
-                                                                                                            <span className="text-sm font-medium">{p.nombreComercial}</span>
-                                                                                                            <span className="text-xs text-muted-foreground">
+                                                                                                            <span className="text-sm font-medium text-gray-800">{p.nombreComercial}</span>
+                                                                                                            <span className="text-xs text-gray-500">
                                                                                                                 {p.formaFarmaceutica} • {p.laboratorio}
                                                                                                             </span>
                                                                                                         </div>
-                                                                                                        {field.value === p.id && (
-                                                                                                            <Check className="ml-auto h-4 w-4 text-primary" />
-                                                                                                        )}
+                                                                                                        {field.value === p.id && <Check className="ml-2 h-4 w-4 text-primary" />}
                                                                                                     </CommandItem>
                                                                                                 ))}
                                                                                             </CommandGroup>
@@ -500,70 +610,194 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                                                     }}
                                                                 />
 
-                                                                {/* Cantidad */}
-                                                                <FormField
-                                                                    control={form.control}
-                                                                    name={`detalles.${index}.cantidad`}
-                                                                    render={({ field }) => (
-                                                                        <FormItem>
-                                                                            <FormLabel className="text-sm font-medium">Cantidad *</FormLabel>
-                                                                            <FormControl>
-                                                                                <Input
-                                                                                    type="number"
-                                                                                    min="1"
-                                                                                    className="h-11"
-                                                                                    placeholder="0"
-                                                                                    {...field}
-                                                                                />
-                                                                            </FormControl>
-                                                                            <FormMessage />
-                                                                        </FormItem>
-                                                                    )}
-                                                                />
-
-                                                                {/* Precio */}
-                                                                <FormField
-                                                                    control={form.control}
-                                                                    name={`detalles.${index}.precio`}
-                                                                    render={({ field }) => (
-                                                                        <FormItem>
-                                                                            <FormLabel className="text-sm font-medium">Precio unidad *</FormLabel>
+                                                                <div className="flex flex-col md:flex-row md:items-end gap-4">
+                                                                    {/* Precio de Compra por Presentación */}
+                                                                    {selectedProducto && selectedProducto.unidadesPresentacion > 1 && (
+                                                                        <FormItem className="w-full md:w-44">
+                                                                            <FormLabel className="text-sm font-medium text-gray-700">
+                                                                                Precio Compra ({selectedProducto.presentacion?.nombre || 'Present.'})
+                                                                            </FormLabel>
                                                                             <FormControl>
                                                                                 <Input
                                                                                     type="number"
                                                                                     min="0"
                                                                                     step="0.01"
-                                                                                    className="h-11"
                                                                                     placeholder="0.00"
-                                                                                    {...field}
+                                                                                    value={preciosPorPresentacion[index] || ''}
+                                                                                    onChange={(e) => handlePrecioPresentacionChange(
+                                                                                        index,
+                                                                                        e.target.value,
+                                                                                        selectedProducto.unidadesPresentacion
+                                                                                    )}
+                                                                                    className="h-11 text-sm rounded-xl border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
                                                                                 />
                                                                             </FormControl>
-                                                                            <FormMessage />
+                                                                            <p className="text-xs text-gray-500 mt-1">
+                                                                                {selectedProducto.unidadesPresentacion} unidades
+                                                                            </p>
                                                                         </FormItem>
                                                                     )}
-                                                                />
+
+                                                                    {/* Precio de Compra por Unidad */}
+                                                                    <FormField
+                                                                        control={form.control}
+                                                                        name={`detalles.${index}.precioCompra`}
+                                                                        render={({ field }) => (
+                                                                            <FormItem className="w-full md:w-40">
+                                                                                <FormLabel className="text-sm font-medium text-gray-700">
+                                                                                    Precio Compra (Ud) *
+                                                                                </FormLabel>
+                                                                                <FormControl>
+                                                                                    <Input
+                                                                                        type="number"
+                                                                                        min="0"
+                                                                                        step="0.01"
+                                                                                        placeholder="0.00"
+                                                                                        {...field} // Mantener enlace con RHF
+                                                                                        onChange={(e) => {
+                                                                                            const precioUnitarioNum = parseFloat(e.target.value) || 0;
+                                                                                            // 1. Actualizar react-hook-form
+                                                                                            field.onChange(precioUnitarioNum); // O field.onChange(e) si prefieres el evento
+
+                                                                                            // 2. Calcular y actualizar el estado del precio por presentación
+                                                                                            const unidades = selectedProducto?.unidadesPresentacion;
+                                                                                            if (unidades && unidades > 0) {
+                                                                                                const precioPresentacionCalculado = precioUnitarioNum * unidades;
+                                                                                                setPreciosPorPresentacion(prev => {
+                                                                                                    const updated = Array.isArray(prev) ? [...prev] : { ...prev };
+                                                                                                    // Guardar con 2 decimales
+                                                                                                    updated[index] = parseFloat(precioPresentacionCalculado.toFixed(2));
+                                                                                                    return updated;
+                                                                                                });
+                                                                                            } else {
+                                                                                                // Si no hay unidades válidas, limpiar el precio por presentación
+                                                                                                setPreciosPorPresentacion(prev => {
+                                                                                                    const updated = Array.isArray(prev) ? [...prev] : { ...prev };
+                                                                                                    delete updated[index]; // O poner 0 o ''
+                                                                                                    return updated;
+                                                                                                });
+                                                                                            }
+                                                                                        }}
+                                                                                        className="h-11 text-sm rounded-xl border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary text-right" // Añadido text-right
+                                                                                    />
+                                                                                </FormControl>
+                                                                                <FormMessage />
+                                                                                <p className="text-xs text-gray-500 mt-1">
+                                                                                    Actual: {selectedProducto?.precioCompra} Bs
+                                                                                </p>
+                                                                            </FormItem>
+                                                                        )}
+                                                                    />
+
+                                                                    {/* Precio de Venta */}
+                                                                    <FormField
+                                                                        control={form.control}
+                                                                        name={`detalles.${index}.precioVenta`}
+                                                                        render={({ field }) => (
+                                                                            <FormItem className="w-full md:w-40">
+                                                                                <FormLabel className="text-sm font-medium text-gray-700">
+                                                                                    Precio Venta (Ud) *
+                                                                                </FormLabel>
+                                                                                <FormControl>
+                                                                                    <Input
+                                                                                        type="number"
+                                                                                        min="0"
+                                                                                        step="0.01"
+                                                                                        placeholder="0.00"
+                                                                                        {...field}
+                                                                                        className="h-11 text-sm rounded-xl border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
+                                                                                    />
+                                                                                </FormControl>
+                                                                                <FormMessage />
+                                                                                <p className="text-xs text-gray-500 mt-1">
+                                                                                    Actual: {selectedProducto?.precioVenta} Bs
+                                                                                </p>
+                                                                            </FormItem>
+                                                                        )}
+                                                                    />
+
+                                                                    {/* Indicador de Margen */}
+                                                                    {detalle.precioCompra > 0 && detalle.precioVenta > 0 && (
+                                                                        <div className="w-full md:w-32 flex flex-col gap-1">
+                                                                            <FormLabel className="text-sm font-medium text-gray-700">
+                                                                                Margen
+                                                                            </FormLabel>
+                                                                            <div className={`h-11 flex items-center justify-center rounded-xl border px-3 ${detalle.precioVenta > detalle.precioCompra
+                                                                                ? 'bg-green-50 border-green-300 dark:bg-green-900/20 dark:border-green-700'
+                                                                                : detalle.precioVenta === detalle.precioCompra
+                                                                                    ? 'bg-yellow-50 border-yellow-300 dark:bg-yellow-900/20 dark:border-yellow-700'
+                                                                                    : 'bg-red-50 border-red-300 dark:bg-red-900/20 dark:border-red-700'
+                                                                                }`}>
+                                                                                <span className={`text-sm font-semibold ${detalle.precioVenta > detalle.precioCompra
+                                                                                    ? 'text-green-700 dark:text-green-400'
+                                                                                    : detalle.precioVenta === detalle.precioCompra
+                                                                                        ? 'text-yellow-700 dark:text-yellow-400'
+                                                                                        : 'text-red-700 dark:text-red-400'
+                                                                                    }`}>
+                                                                                    {((detalle.precioVenta - detalle.precioCompra) / detalle.precioCompra * 100).toFixed(1)}%
+                                                                                </span>
+                                                                            </div>
+                                                                            <p className="text-xs text-gray-500 mt-2">
+                                                                                Actual: {
+                                                                                    (() => {
+                                                                                        // Obtener precios (convierte a número, 0 si no es válido)
+                                                                                        const precioVenta = Number(selectedProducto?.precioVenta) || 0;
+                                                                                        const precioCompra = Number(selectedProducto?.precioCompra) || 0;
+                                                                                        let margen = 0; // Valor por defecto
+
+                                                                                        // Calcular margen SOLO si precioCompra es positivo (evita división por cero)
+                                                                                        if (precioCompra > 0) {
+                                                                                            margen = ((precioVenta - precioCompra) / precioCompra) * 100;
+                                                                                        }
+
+                                                                                        // Verificar si el resultado NO es un número finito (NaN, Infinity, -Infinity)
+                                                                                        if (!isFinite(margen)) {
+                                                                                            margen = 0; // Poner 0 si no es finito
+                                                                                        }
+
+                                                                                        // Formatear y devolver
+                                                                                        return margen.toFixed(1) + '%';
+                                                                                    })()
+                                                                                }
+                                                                            </p>
+                                                                        </div>
+                                                                    )}
+                                                                </div>
                                                             </div>
 
-                                                            {/* Lote - Ahora usando Popover + Command */}
-                                                            <div className="mt-4 w-full">
-                                                                <FormLabel className="text-sm font-medium flex items-center gap-2 mb-2">
-                                                                    <Calendar className="h-4 w-4" />
-                                                                    Lote *
+
+
+                                                            {/* Lotes - múltiples por detalle */}
+                                                            <div className="mt-6 w-full space-y-4">
+                                                                <FormLabel className="text-sm font-semibold flex items-center gap-2 mb-2 text-gray-800">
+                                                                    <Calendar className="h-4 w-4 text-primary" />
+                                                                    Lotes *
                                                                 </FormLabel>
 
-                                                                <div className="flex gap-2 items-start">
-                                                                    <div className="flex-1">
-                                                                        <FormField
-                                                                            control={form.control}
-                                                                            name={`detalles.${index}.loteProductoId`}
-                                                                            render={({ field }) => {
-                                                                                const selectedLote = lotesPorDetalle[index]?.find((l) => l.id === field.value);
+                                                                {form.watch(`detalles.${index}.lotesProductos`)?.map((loteItem, loteIndex) => {
+                                                                    const currentProductoId = form.watch(`detalles.${index}.productoId`);
+                                                                    const selectedLote = lotesPorDetalle[index]?.find(
+                                                                        (l) => l.id === Number(loteItem.loteProductoId)
+                                                                    );
+                                                                    const isLoadingLotes = loadingLotes[currentProductoId];
 
-                                                                                return (
-                                                                                    <FormItem>
+                                                                    return (
+                                                                        <div
+                                                                            key={loteIndex}
+                                                                            className="flex flex-col md:flex-row md:items-end gap-3 p-4 border border-gray-200 bg-muted/30 rounded-2xl shadow-sm transition-all hover:shadow-md"
+                                                                        >
+                                                                            {/* Selector de Lote */}
+                                                                            <FormField
+                                                                                control={form.control}
+                                                                                name={`detalles.${index}.lotesProductos.${loteIndex}.loteProductoId`}
+                                                                                render={({ field }) => (
+                                                                                    <FormItem className="flex-1 w-full">
+                                                                                        <FormLabel className="text-sm font-medium text-gray-700">Lote</FormLabel>
                                                                                         <Popover
-                                                                                            open={openLoteIndex === index}
-                                                                                            onOpenChange={(open) => setOpenLoteIndex(open ? index : null)}
+                                                                                            open={openLoteIndex === `${index}-${loteIndex}`}
+                                                                                            onOpenChange={(open) =>
+                                                                                                setOpenLoteIndex(open ? `${index}-${loteIndex}` : null)
+                                                                                            }
                                                                                         >
                                                                                             <PopoverTrigger asChild>
                                                                                                 <Button
@@ -571,19 +805,23 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                                                                                     role="combobox"
                                                                                                     disabled={!currentProductoId || isLoadingLotes}
                                                                                                     className={cn(
-                                                                                                        "w-full justify-between h-11",
+                                                                                                        "w-full justify-between h-11 text-left text-sm border-gray-300 bg-white hover:bg-gray-50 transition rounded-xl",
                                                                                                         !selectedLote && "text-muted-foreground"
-                                                                                                    )} >
+                                                                                                    )}
+                                                                                                >
                                                                                                     {isLoadingLotes ? (
-                                                                                                        <div className="flex items-center gap-2">
+                                                                                                        <div className="flex items-center gap-2 text-gray-500">
                                                                                                             <Loader2 className="h-4 w-4 animate-spin" />
                                                                                                             <span>Cargando lotes...</span>
                                                                                                         </div>
                                                                                                     ) : selectedLote ? (
                                                                                                         <div className="flex flex-col text-left">
-                                                                                                            <span className="text-sm font-medium">{selectedLote.lote}</span>
-                                                                                                            <span className="text-xs text-muted-foreground">
-                                                                                                                Vence: {new Date(selectedLote.fechaVencimiento).toLocaleDateString()}
+                                                                                                            <span className="text-sm font-medium text-gray-800">
+                                                                                                                {selectedLote.lote}
+                                                                                                            </span>
+                                                                                                            <span className="text-xs text-gray-500">
+                                                                                                                Vence:{" "}
+                                                                                                                {new Date(selectedLote.fechaVencimiento).toLocaleDateString()}
                                                                                                             </span>
                                                                                                         </div>
                                                                                                     ) : !currentProductoId ? (
@@ -591,17 +829,17 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                                                                                     ) : (
                                                                                                         "Selecciona un lote"
                                                                                                     )}
-                                                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                                                                                                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-60" />
                                                                                                 </Button>
                                                                                             </PopoverTrigger>
-                                                                                            <PopoverContent className="w-full p-0">
+
+                                                                                            <PopoverContent className="w-full p-0 rounded-xl shadow-lg border border-gray-200">
                                                                                                 <Command>
                                                                                                     <CommandInput placeholder="Buscar lote..." />
-                                                                                                    <CommandEmpty>
+                                                                                                    <CommandEmpty className="p-2 text-center text-gray-500">
                                                                                                         {lotesPorDetalle[index]?.length === 0
                                                                                                             ? "No hay lotes disponibles"
-                                                                                                            : "No se encontró lote"
-                                                                                                        }
+                                                                                                            : "No se encontró lote"}
                                                                                                     </CommandEmpty>
                                                                                                     <CommandGroup>
                                                                                                         {lotesPorDetalle[index]?.map((lote) => (
@@ -609,18 +847,25 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                                                                                                 key={lote.id}
                                                                                                                 value={lote.lote}
                                                                                                                 onSelect={() => {
-                                                                                                                    field.onChange(lote.id);
+                                                                                                                    form.setValue(
+                                                                                                                        `detalles.${index}.lotesProductos.${loteIndex}.loteProductoId`,
+                                                                                                                        lote.id
+                                                                                                                    );
                                                                                                                     setOpenLoteIndex(null);
                                                                                                                 }}
+                                                                                                                className="flex justify-between items-center py-2 px-3 hover:bg-primary/10 rounded-lg"
                                                                                                             >
                                                                                                                 <div className="flex flex-col text-left">
-                                                                                                                    <span className="text-sm font-medium">{lote.lote}</span>
-                                                                                                                    <span className="text-xs text-muted-foreground">
-                                                                                                                        Vence: {new Date(lote.fechaVencimiento).toLocaleDateString()}
+                                                                                                                    <span className="text-sm font-medium text-gray-800">
+                                                                                                                        {lote.lote}
+                                                                                                                    </span>
+                                                                                                                    <span className="text-xs text-gray-500">
+                                                                                                                        Vence:{" "}
+                                                                                                                        {new Date(lote.fechaVencimiento).toLocaleDateString()}
                                                                                                                     </span>
                                                                                                                 </div>
-                                                                                                                {field.value === lote.id && (
-                                                                                                                    <Check className="ml-auto h-4 w-4 text-primary" />
+                                                                                                                {Number(field.value) === lote.id && (
+                                                                                                                    <Check className="ml-2 h-4 w-4 text-primary" />
                                                                                                                 )}
                                                                                                             </CommandItem>
                                                                                                         ))}
@@ -630,16 +875,124 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                                                                         </Popover>
                                                                                         <FormMessage />
                                                                                     </FormItem>
-                                                                                );
-                                                                            }}
-                                                                        />
-                                                                    </div>
+                                                                                )}
+                                                                            />
 
+                                                                            <FormField
+                                                                                control={form.control}
+                                                                                name={`detalles.${index}.lotesProductos.${loteIndex}.cantidad`}
+                                                                                render={({ field }) => {
+
+
+                                                                                    const total = Number(field.value) || 0;
+                                                                                    let presentaciones = 0;
+                                                                                    let sueltas = 0;
+
+                                                                                    // Calcular cuántas presentaciones y sueltas son
+                                                                                    if (unidadesPorPresentacion > 1) {
+                                                                                        presentaciones = Math.floor(total / unidadesPorPresentacion);
+                                                                                        sueltas = total % unidadesPorPresentacion;
+                                                                                    } else {
+                                                                                        sueltas = total; // Si no hay presentación, todo es "unidades"
+                                                                                    }
+
+                                                                                    // Handler cuando cambia el input de "Presentaciones"
+                                                                                    const handlePresentacionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                                                                                        const nuevasPresentaciones = Number(e.target.value) || 0;
+                                                                                        // Calculamos el nuevo total y actualizamos el form state
+                                                                                        const newTotal = (nuevasPresentaciones * unidadesPorPresentacion) + sueltas;
+                                                                                        field.onChange(newTotal); // Esto actualiza react-hook-form
+                                                                                    };
+
+                                                                                    // Handler cuando cambia el input de "Unidades Sueltas"
+                                                                                    const handleSueltasChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+                                                                                        const nuevasSueltas = Number(e.target.value) || 0;
+                                                                                        // Calculamos el nuevo total y actualizamos el form state
+                                                                                        const newTotal = (presentaciones * unidadesPorPresentacion) + nuevasSueltas;
+                                                                                        field.onChange(newTotal); // Esto actualiza react-hook-form
+                                                                                    };
+
+                                                                                    return (
+                                                                                        <>
+                                                                                            {/* Input para Presentaciones */}
+                                                                                            <FormItem className="w-full md:w-36">
+                                                                                                <FormLabel className="text-sm font-medium text-gray-700">{nombrePresentacion}{unidadesPorPresentacion > 1 ? ` (${unidadesPorPresentacion})` : ''}</FormLabel>
+                                                                                                <FormControl>
+                                                                                                    <Input
+                                                                                                        type="number"
+                                                                                                        min={0}
+                                                                                                        value={presentaciones}
+                                                                                                        onChange={handlePresentacionChange}
+                                                                                                        className="h-11 text-sm rounded-xl border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
+                                                                                                        // Deshabilitamos si el producto no tiene unidades de presentación (o es 1)
+                                                                                                        disabled={unidadesPorPresentacion <= 1}
+                                                                                                    />
+                                                                                                </FormControl>
+                                                                                                {/* El FormMessage se moverá al siguiente campo */}
+                                                                                            </FormItem>
+
+                                                                                            {/* Input para Unidades Sueltas */}
+                                                                                            <FormItem className="w-full md:w-36">
+                                                                                                <FormLabel className="text-sm font-medium text-gray-700">{nombreUnidadBase}s</FormLabel>
+                                                                                                <FormControl>
+                                                                                                    <Input
+                                                                                                        type="number"
+                                                                                                        min={0}
+                                                                                                        value={sueltas}
+                                                                                                        onChange={handleSueltasChange}
+                                                                                                        className="h-11 text-sm rounded-xl border-gray-300 focus:ring-2 focus:ring-primary focus:border-primary"
+                                                                                                    />
+                                                                                                </FormControl>
+                                                                                                {/* El mensaje de error (ej. "cantidad > 0") aparecerá aquí */}
+                                                                                                <FormMessage />
+                                                                                            </FormItem>
+                                                                                        </>
+                                                                                    );
+                                                                                }}
+                                                                            />
+
+                                                                            {/* Botón eliminar */}
+                                                                            <Button
+                                                                                type="button"
+                                                                                variant="outline"
+                                                                                size="icon"
+                                                                                className="self-end md:self-center rounded-xl text-red-600 hover:text-red-600"
+                                                                                onClick={() => {
+                                                                                    const nuevosLotes = [...(form.getValues(`detalles.${index}.lotesProductos`) ?? [])];
+                                                                                    nuevosLotes.splice(loteIndex, 1);
+                                                                                    form.setValue(`detalles.${index}.lotesProductos`, nuevosLotes);
+                                                                                }}
+                                                                            >
+                                                                                <Trash2 className="h-4 w-4" />
+                                                                            </Button>
+                                                                        </div>
+                                                                    );
+                                                                })}
+
+                                                                <div className="flex flex-wrap gap-3 mt-4">
+                                                                    {/* Botón agregar lote directamente */}
+                                                                    <Button
+                                                                        type="button"
+                                                                        onClick={() => {
+                                                                            const lotesActuales = form.getValues(`detalles.${index}.lotesProductos`) || [];
+                                                                            form.setValue(`detalles.${index}.lotesProductos`, [
+                                                                                ...lotesActuales,
+                                                                                { loteProductoId: 0, cantidad: 0 },
+                                                                            ]);
+                                                                        }}
+                                                                        disabled={!form.watch(`detalles.${index}.productoId`)}
+                                                                        className="inline-flex items-center gap-2 rounded-xl px-4 py-2 font-medium shadow-sm bg-blue-100 text-blue-800 hover:bg-blue-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
+                                                                    >
+                                                                        <PlusCircle className="h-4 w-4" />
+                                                                        Agregar lote
+                                                                    </Button>
+
+                                                                    {/* Botón abrir modal para registrar nuevo lote */}
                                                                     <Button
                                                                         type="button"
                                                                         onClick={() => handleOpenModalRegistrarLote(currentProductoId, index)}
                                                                         disabled={!currentProductoId}
-                                                                        className="inline-flex items-center gap-1 rounded-md px-3 py-2 font-semibold disabled:opacity-50 disabled:cursor-not-allowed h-11"
+                                                                        className="inline-flex items-center gap-2 rounded-xl px-4 py-2 font-medium shadow-sm bg-green-100 text-green-800 hover:bg-green-200 disabled:opacity-50 disabled:cursor-not-allowed transition-colors duration-200"
                                                                     >
                                                                         <PlusCircle className="h-4 w-4" />
                                                                         Nuevo lote
@@ -670,7 +1023,7 @@ export function ModalRegistrarOrdenCompra({ open, onClose }: ModalRegistrarOrden
                                         variant="outline"
                                         className="w-full h-11 border-dashed border-2 hover:border-solid transition-all"
                                         onClick={() =>
-                                            append({ productoId: "", cantidad: 1, precio: 0, loteProductoId: 0 })
+                                            append({ productoId: "", precioCompra: 0, lotesProductos: [], precioVenta: 0 })
                                         }
                                     >
                                         <Plus className="h-4 w-4 mr-2" />

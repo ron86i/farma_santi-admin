@@ -9,8 +9,6 @@ import { ModalModificarCliente } from "@/pages/Clientes/components/ModalModifica
 import { DialogHabilitarCliente } from "@/pages/Clientes/components/DialogHabilitarCliente";
 import { DialogDeshabilitarCliente } from "./DialogDeshabilitarCliente";
 
-
-
 type MenuAccionesProps = {
     clienteId: number;
     ciNit: string;
@@ -43,12 +41,12 @@ export function MenuAcciones({ clienteId, ciNit, razonSocial, estado }: MenuAcci
                         Modificar
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem disabled={estado === 'Desabilitado' ? true : false} onClick={() => setOpenDialogHabilitar(true)}>
+                    <DropdownMenuItem disabled={estado === 'Activo'} onClick={() => setOpenDialogHabilitar(true)}>
                         <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
                         Habilitar
                     </DropdownMenuItem>
 
-                    <DropdownMenuItem disabled={estado === 'Habilitado' ? true : false} onClick={() => setOpenDialogDeshabilitar(true)}>
+                    <DropdownMenuItem disabled={estado === 'Inactivo'} onClick={() => setOpenDialogDeshabilitar(true)}>
                         <Ban className="w-4 h-4 mr-2 text-yellow-500" />
                         Deshabilitar
                     </DropdownMenuItem>

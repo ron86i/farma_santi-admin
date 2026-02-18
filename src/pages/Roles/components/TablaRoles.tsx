@@ -14,6 +14,7 @@ import { Rol } from "@/models";
 import dateFormat from "dateformat";
 import { MenuAcciones } from "./MenuAcciones";
 import { useRolesContext } from "@/context/rolesContext";
+import { Button } from "@/components/ui/button";
 
 type TablaRolesProps = {
     roles: Rol[];
@@ -21,16 +22,18 @@ type TablaRolesProps = {
     filter?: string;
 };
 
-export function TablaRoles({ roles: roles, loading, filter }: TablaRolesProps) {
+export function TablaRoles({ roles, loading, filter }: TablaRolesProps) {
     const [sortedRoles, setSortedRoles] = useState<Rol[]>([]);
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
-    const { rolAction } = useRolesContext()
-    useEffect(() => {
-        // 1. Clonamos los datos entrantes
-        let updated = [...roles];
+    const { rolAction } = useRolesContext();
 
-        // 2. Si ya había columna elegida, la aplicamos de nuevo
+    // 🔹 Estado para paginación
+    const [currentPage, setCurrentPage] = useState(1);
+    const itemsPerPage = 6;
+
+    useEffect(() => {
+        let updated = [...roles];
         if (sortKey) {
             updated.sort((a, b) => {
                 const valueA = getNestedValue(a, sortKey);
@@ -49,9 +52,8 @@ export function TablaRoles({ roles: roles, loading, filter }: TablaRolesProps) {
                 return 0;
             });
         }
-
-        // 3. Actualizamos el estado
         setSortedRoles(updated);
+        setCurrentPage(1); // reset al cambiar datos
     }, [roles, rolAction]);
 
     const handleSort = (key: string) => {
@@ -77,7 +79,7 @@ export function TablaRoles({ roles: roles, loading, filter }: TablaRolesProps) {
         const sorted = [...roles].sort((a, b) => {
             let valueA = getNestedValue(a, key);
             let valueB = getNestedValue(b, key);
-            
+
             if (typeof valueA === "string" && typeof valueB === "string") {
                 return direction === "asc"
                     ? valueA.localeCompare(valueB)
@@ -93,6 +95,7 @@ export function TablaRoles({ roles: roles, loading, filter }: TablaRolesProps) {
         setSortedRoles(sorted);
         setSortKey(key);
         setSortDirection(direction);
+        setCurrentPage(1); // reset al cambiar orden
     };
 
     const columns = [
@@ -105,8 +108,6 @@ export function TablaRoles({ roles: roles, loading, filter }: TablaRolesProps) {
 
     const searchText = filter?.toLowerCase();
     const filteredUsers = sortedRoles.filter((rol) =>
-
-
         [
             rol.id,
             rol.nombre,
@@ -116,6 +117,11 @@ export function TablaRoles({ roles: roles, loading, filter }: TablaRolesProps) {
             .filter(Boolean)
             .some((field) => field?.toString().toLowerCase().includes(searchText ?? ""))
     );
+
+    // 🔹 Paginación
+    const totalPages = Math.max(1, Math.ceil(filteredUsers.length / itemsPerPage));
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const paginatedUsers = filteredUsers.slice(startIndex, startIndex + itemsPerPage);
 
     return (
         <div className="border rounded-md">
@@ -149,16 +155,13 @@ export function TablaRoles({ roles: roles, loading, filter }: TablaRolesProps) {
                             </TableCell>
                         </TableRow>
                     ) : (
-                        filteredUsers.map((item) => (
+                        paginatedUsers.map((item) => (
                             <TableRow key={item.id}>
                                 <TableCell>{item.id}</TableCell>
                                 <TableCell>{item.nombre}</TableCell>
-
+                                <TableCell>{dateFormat(item.createdAt)}</TableCell>
                                 <TableCell>
-                                    {dateFormat(item.createdAt)}
-                                </TableCell>
-                                <TableCell>
-                                    <Badge variant={item.estado === 'Activo' ? 'default' : 'destructive'}>
+                                    <Badge variant={item.estado === "Activo" ? "default" : "destructive"}>
                                         {item.estado}
                                     </Badge>
                                 </TableCell>
@@ -170,6 +173,27 @@ export function TablaRoles({ roles: roles, loading, filter }: TablaRolesProps) {
                     )}
                 </TableBody>
             </Table>
+
+            {/* 🔹 Controles de paginación siempre visibles */}
+            <div className="flex justify-center items-center gap-4 p-2">
+                <Button
+                    variant="outline"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                    Anterior
+                </Button>
+                <span>
+                    Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                    variant="outline"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                    Siguiente
+                </Button>
+            </div>
         </div>
     );
 }

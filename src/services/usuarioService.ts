@@ -1,4 +1,4 @@
-import { MessageDataResponse, MessageResponse, UsuarioDetail, UsuarioInfo, UsuarioRequest } from "@/models";
+import { MessageDataResponse, MessageResponse, UsuarioDetail, UsuarioInfo, UsuarioRequest, UsuarioResetPassword } from "@/models";
 import apiClient, { parseAxiosError } from './axiosClient';
 
 // Obtener lista de usuarios
@@ -72,9 +72,9 @@ export async function obtenerMiUsuario(): Promise<UsuarioDetail> {
 
 }
 //Restablecer password por id de usuario
-export async function restablecerPasswordById(usuarioId: number): Promise<MessageDataResponse<UsuarioDetail>> {
+export async function restablecerPasswordById(usuarioId: number,request:UsuarioResetPassword): Promise<MessageDataResponse<UsuarioDetail>> {
     try {
-        const response = await apiClient.patch(`/usuarios/password/restablecer/${usuarioId}`);
+        const response = await apiClient.patch(`/usuarios/password/restablecer/${usuarioId}`,request);
         return response.data as MessageDataResponse<UsuarioDetail>;
     } catch (err) {
         throw parseAxiosError(err, "Error al restablecer contraseña");

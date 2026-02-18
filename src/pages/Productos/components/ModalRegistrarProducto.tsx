@@ -1,32 +1,9 @@
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import {
-  Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle
-} from "@/components/ui/dialog";
-import {
-  Form, FormControl, FormField, FormItem, FormLabel, FormMessage
-} from "@/components/ui/form";
-import {
-  Button,
-  Checkbox,
-  Input,
-  Popover,
-  PopoverContent,
-  PopoverTrigger,
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue
-} from "@/components/ui";
-import {
-  Command,
-  CommandEmpty,
-  CommandGroup,
-  CommandInput,
-  CommandItem,
-  CommandList,
-} from "@/components/ui/command";
+import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Button, Checkbox, Input, Popover, PopoverContent, PopoverTrigger, Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui";
+import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command";
 import { useFieldArray, useForm } from "react-hook-form";
 import { CustomToast } from "@/components/toast";
 import dateFormat from "dateformat";
@@ -41,11 +18,11 @@ import { Check, ChevronDown, ChevronsUpDown, Trash } from "lucide-react";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { obtenerListaFormasFarmaceuticas, obtenerListaUnidadesMedidas } from "@/services/productoService";
 import { ModalRegistrarPrincipioActivo } from "@/pages/PrincipiosActivos/components/ModalRegistrarPrincipioActivo";
+import { obtenerListaPresentaciones } from "@/services/presentacionService";
 
 const schema = z.object({
   nombreComercial: z.string().min(1, { message: "Campo obligatorio" }),
   formaFarmaceuticaId: z.coerce.number().gt(0, { message: "Campo obligatorio" }),
-  precioVenta: z.coerce.number().gt(0, { message: "Debe ser mayor que 0" }),
   stockMin: z.coerce.number().gt(0, { message: "Debe ser mayor a 0" }),
   categorias: z.array(z.number()).min(1, { message: "Selecciona al menos una categoría" }),
   laboratorioId: z.number().gt(0, { message: "Selecciona un laboratorio" }),
@@ -56,6 +33,9 @@ const schema = z.object({
       unidadMedidaId: z.number().min(1, ""),
     })
   ).min(1, { message: "Agrega al menos un principio activo" }),
+  presentacionId: z.number().gt(0, { message: "Selecciona la presentación" }),
+  unidadesPresentacion: z.coerce.number().gt(0, { message: "Debe ser mayor a 0" }),
+  precioVenta: z.coerce.number().gt(0, { message: "Debe ser mayor a 0" }),
 });
 
 type FormData = z.infer<typeof schema>;
@@ -78,7 +58,7 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
   const { fetch: fetchFormasFarmaceuticas, data: dataFormasFarmaceuticas } = useQuery(obtenerListaFormasFarmaceuticas);
   const { fetch: fetchUnidadesMedidas, data: dataUnidadesMedidas } = useQuery(obtenerListaUnidadesMedidas)
   const { fetch: fetchPrincipiosActivos, data: dataPrincipiosActivos } = useQuery(obtenerListaPrincipiosActivos);
-
+  const { fetch: fetchPresentaciones, data: dataPresentaciones } = useQuery(obtenerListaPresentaciones);
   const [openModalRegistrarPrincipioActivo, setOpenModalRegistrarPrincipioActivo] = useState(false);
   // Estados para drag and drop
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
@@ -89,10 +69,11 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
     defaultValues: {
       nombreComercial: "",
       formaFarmaceuticaId: 0,
-      precioVenta: 0,
       stockMin: 0,
+      precioVenta: 0,
       categorias: [],
       laboratorioId: 0,
+      unidadesPresentacion: 0,
     },
   });
   // Función moveImage corregida
@@ -183,6 +164,7 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
           fetchFormasFarmaceuticas(),
           fetchUnidadesMedidas(),
           fetchPrincipiosActivos(),
+          fetchPresentaciones(),
         ]);
       } catch (err: any) {
         toast.custom((t) => (
@@ -218,9 +200,19 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
       });
     }
   }, [fields, append]);
-  const onSubmit = async (data: ProductoRequest) => {
+  const onSubmit = async (data: FormData) => {
     try {
-      const response = await registrarProducto(data, imagenes);
+
+      // Asegurar que los valores sean números
+      const processedData: ProductoRequest = {
+        ...data,
+        laboratorioId: Number(data.laboratorioId),
+        formaFarmaceuticaId: Number(data.formaFarmaceuticaId),
+        precioVenta: data.precioVenta,
+        presentacionId: data.presentacionId,
+        unidadesPresentacion: data.unidadesPresentacion
+      };
+      const response = await registrarProducto(processedData, imagenes);
       toast.custom((t) => (
         <CustomToast
           t={t}
@@ -290,7 +282,7 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
               {/* Campos básicos */}
               <FormField name="nombreComercial" control={form.control} render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Nombre comercial</FormLabel>
+                  <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Nombre comercial</FormLabel>
                   <FormControl><Input placeholder="Ej. Paracetamol Plus" {...field} /></FormControl>
                   <FormMessage />
                 </FormItem>
@@ -299,7 +291,8 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
 
 
               <div className="space-y-2">
-                <FormLabel>Principios Activos</FormLabel>
+                <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Principios Activos</FormLabel>
+
                 {fields.map((field, index) => {
                   // IDs ya seleccionados en otros indices (excluyendo el actual)
                   const selectedIds = fields
@@ -319,7 +312,7 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
                         control={form.control}
                         name={`principiosActivos.${index}.principioActivoId`}
                         render={({ field }) => (
-                          <FormItem className="col-span-4">
+                          <FormItem className="col-span-12 lg:col-span-4">
                             <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Principio activo</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
@@ -373,12 +366,12 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
                         )}
                       />
 
-
+                      {/* Concentración */}
                       <FormField
                         control={form.control}
                         name={`principiosActivos.${index}.concentracion`}
                         render={({ field }) => (
-                          <FormItem className="col-span-3">
+                          <FormItem className="col-span-6 lg:col-span-3">
                             <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Concentración</FormLabel>
                             <Input
                               type="number"
@@ -395,13 +388,12 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
                         )}
                       />
 
-
                       {/* Unidad de medida */}
                       <FormField
                         control={form.control}
                         name={`principiosActivos.${index}.unidadMedidaId`}
                         render={({ field }) => (
-                          <FormItem className="col-span-3">
+                          <FormItem className="col-span-6 lg:col-span-3">
                             <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Unidad</FormLabel>
                             <Popover>
                               <PopoverTrigger asChild>
@@ -412,7 +404,7 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
                                 >
                                   {field.value
                                     ? dataUnidadesMedidas?.find((um) => um.id === field.value)?.abreviatura
-                                    : "Selecciona una"}
+                                    : "Seleccione"}
                                   <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                                 </Button>
                               </PopoverTrigger>
@@ -441,45 +433,49 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
                         )}
                       />
 
-                      {/* Botón eliminar, solo si hay más de uno */}
-                      {fields.length > 1 ? (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          onClick={() => remove(index)}
-                          className="col-span-2 text-red-500 hover:bg-red-100"
-                          aria-label={`Eliminar principio activo ${index + 1}`}
-                        >
-                          <Trash className="w-5 h-5" />
-                        </Button>
-                      ) : (
-                        <div className="col-span-2 flex items-center justify-center text-gray-400 select-none">
-                          <Trash className="w-5 h-5" />
-                        </div>
-                      )}
+                      {/* Botón eliminar */}
+                      <div className="col-span-12 lg:col-span-2 flex justify-end">
+                        {fields.length > 1 ? (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            onClick={() => remove(index)}
+                            className="text-red-500 hover:bg-red-100"
+                            aria-label={`Eliminar principio activo ${index + 1}`}
+                          >
+                            <Trash className="w-5 h-5" />
+                          </Button>
+                        ) : (
+                          <div className="flex items-center justify-center text-gray-400 select-none">
+                            <Trash className="w-5 h-5" />
+                          </div>
+                        )}
+                      </div>
                     </div>
                   );
                 })}
 
-                {/* Botón para registrar principios activos */}
-                <Button type="button" className="w-full bg-emerald-500 dark:bg-emerald-800"
-                  onClick={() => { setOpenModalRegistrarPrincipioActivo(true) }
-                  }
-                >
-                  Registrar principio activo
-                </Button>
-                {/* Botón para agregar más */}
-                <Button type="button" className="w-full bg-blue-500 dark:bg-blue-800"
-                  onClick={() =>
-                    append({
-                      principioActivoId: 0,
-                      concentracion: 0,
-                      unidadMedidaId: 0,
-                    })
-                  }
-                >
-                  Agregar principio activo
-                </Button>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 pt-2">
+                  {/* Botón para registrar principios activos */}
+                  <Button type="button" className="w-full bg-emerald-500 dark:bg-emerald-800"
+                    onClick={() => { setOpenModalRegistrarPrincipioActivo(true) }
+                    }
+                  >
+                    Registrar principio activo
+                  </Button>
+                  {/* Botón para agregar más */}
+                  <Button type="button" className="w-full bg-blue-500 dark:bg-blue-800"
+                    onClick={() =>
+                      append({
+                        principioActivoId: 0,
+                        concentracion: 0,
+                        unidadMedidaId: 0,
+                      })
+                    }
+                  >
+                    Agregar principio activo
+                  </Button>
+                </div>
               </div>
 
 
@@ -487,7 +483,7 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
 
               <FormField name="formaFarmaceuticaId" control={form.control} render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Forma Farmaceutica</FormLabel>
+                  <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Forma Farmaceutica</FormLabel>
                   <FormControl>
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
@@ -509,37 +505,90 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
                 </FormItem>
               )} />
 
+              {/* <div className="flex gap-4 space-y-3"> */}
 
-              <div className="flex gap-4">
-                <div className="w-1/2">
-                  <FormField name="precioVenta" control={form.control} render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Precio de venta (Bs)</FormLabel>
-                      <FormControl>
-                        <Input step="0.01" type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )} />
-                </div>
 
-                <div className="w-1/2">
-                  <FormField name="stockMin" control={form.control} render={({ field }) => (
-                    <FormItem>
-                      <FormLabel>Stock mínimo</FormLabel>
-                      <FormControl>
-                        <Input type="number" {...field} />
-                      </FormControl>
-                      <FormMessage />
+              <div className="w-1/2 flex flex-col space-y-4">
+                {/* Presentación */}
+                <FormField
+                  control={form.control}
+                  name={`presentacionId`}
+                  render={({ field }) => (
+                    <FormItem className="col-span-3">
+                      <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Presentación</FormLabel>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button
+                            variant="outline"
+                            role="combobox"
+                            className="w-full justify-between border-gray-300"
+                          >
+                            {field.value
+                              ? dataPresentaciones?.find((um) => um.id === field.value)?.nombre
+                              : "Selecciona una presentación"}
+                            <ChevronDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Buscar presentación..." />
+                            <CommandEmpty>No se encontró.</CommandEmpty>
+                            <CommandGroup>
+                              {dataPresentaciones?.map((um) => (
+                                <CommandItem
+                                  key={um.id}
+                                  onSelect={() => field.onChange(um.id)}
+                                >
+                                  {um.nombre}
+                                  {field.value === um.id && (
+                                    <Check className="ml-auto h-4 w-4" />
+                                  )}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage className="text-sm text-red-600" />
                     </FormItem>
-                  )} />
-                </div>
+                  )}
+                />
+                {/* 'space-y-4' agregará espacio aquí */}
+                <FormField name="unidadesPresentacion" control={form.control} render={({ field }) => (
+                  <FormItem className="col-span-3">
+                    <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Unidades por presentación</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+                <FormField name="stockMin" control={form.control} render={({ field }) => (
+                  <FormItem className="col-span-3">
+                    <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Stock mínimo (Alerta)</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
+
+                <FormField name="precioVenta" control={form.control} render={({ field }) => (
+                  <FormItem className="col-span-3">
+                    <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Precio (Ud)</FormLabel>
+                    <FormControl>
+                      <Input type="number" {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )} />
               </div>
+              {/* </div> */}
 
 
               <FormField name="laboratorioId" control={form.control} render={({ field }) => (
                 <FormItem>
-                  <FormLabel>Laboratorio</FormLabel>
+                  <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Laboratorio</FormLabel>
                   <FormControl>
                     <Select
                       onValueChange={(value) => field.onChange(parseInt(value))}
@@ -561,30 +610,30 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
                 </FormItem>
               )} />
 
-              {/* Campo de categorías corregido */}
+              {/* Campo de categorías */}
               <FormField name="categorias" control={form.control} render={() => (
                 <FormItem>
-                  <FormLabel>Categorías</FormLabel>
+                  <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Categorías</FormLabel>
                   <Popover open={categoriasPopoverOpen} onOpenChange={setCategoriasPopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant="outline"
                         role="combobox"
                         aria-expanded={categoriasPopoverOpen}
-                        className="w-full justify-between"
+                        className="w-full justify-between h-auto items-start"
                       >
-                        <span className="truncate">
+                        <span className="whitespace-normal text-left pr-2">
                           {getSelectedCategoriasText()}
                         </span>
                         <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                       </Button>
                     </PopoverTrigger>
-                    <PopoverContent className="w-[400px] p-0">
+                    <PopoverContent className="w-[--radix-popover-trigger-width] p-0">
                       <Command>
                         <CommandInput placeholder="Buscar categoría..." />
-                        <CommandList>
+                        <CommandList className="max-h-[300px] overflow-y-auto">
                           <CommandEmpty>No se encontraron categorías.</CommandEmpty>
-                          <CommandGroup>
+                          <CommandGroup className="max-h-[300px] overflow-y-auto touch-action-pan-y">
                             {dataCategorias?.map((categoria) => (
                               <CommandItem
                                 key={categoria.id}
@@ -688,7 +737,7 @@ export function ModalRegistrarProducto({ open, onClose }: ModalRegistrarProducto
                   </ScrollArea>
                 )}
 
-                <FormLabel>Imágenes del producto</FormLabel>
+                <FormLabel className="font-semibold text-neutral-900 dark:text-neutral-100">Imágenes</FormLabel>
                 <div className="flex flex-row gap-2.5">
                   <FormControl>
                     <Input
