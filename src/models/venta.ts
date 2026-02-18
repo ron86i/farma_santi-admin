@@ -1,10 +1,13 @@
 import { ClienteSimple, ProductoSimple, UsuarioSimple } from ".";
 
 export interface VentaRequest {
-  usuarioId?: number;
+  usuarioId?: number; // se asigna automáticamente si la sesión del usuario ya la envía el backend
   clienteId: number;
+  descuento?: number; // hacerlo opcional por si no hay descuento (0)
+  tipoPago?: "Efectivo" | "Tarjeta" | "Transferencia"; // usar union type en lugar de string libre
   detalles: DetalleVentaRequest[];
 }
+
 
 export interface DetalleVentaRequest {
   productoId: string;
@@ -19,10 +22,13 @@ export interface VentaInfo {
   fecha: Date;
   estado: string;
   deletedAt: Date | null;
-  total:number | 0;
+  descuento: number;
+  tipoPago: string;
+  total: number | 0;
+  url: string;
 }
 
-export interface VentaDetail extends VentaInfo{
+export interface VentaDetail extends VentaInfo {
   detalles: DetalleVentaDetail[];
 }
 
@@ -33,6 +39,7 @@ export interface DetalleVentaDetail {
   cantidad: number;
   precio: number;
   total: number;
+  url: string;
 }
 
 export interface VentaLoteProducto {
@@ -55,5 +62,5 @@ export interface VentaLoteProductoDAO {
 }
 
 export interface VentaResponse {
-    ventaId: number;
+  ventaId: number;
 }

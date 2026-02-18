@@ -10,20 +10,20 @@ interface ProtectedLoginProps {
 
 export function ProtectedLogin({ children }: ProtectedLoginProps) {
   const navigate = useNavigate();
-  const { fetch, error, loading } = useQuery(verifyToken);
+  const { fetch, loading } = useQuery(verifyToken);
 
   useEffect(() => {
     const checkSession = async () => {
       try {
-        await fetch();
-        if (error == null) {
-          navigate("/main/dashboard");
-        } else {
-          navigate("/");
+        const response = await fetch();
+        if (response) {
+          // ✅ Si hay sesión activa, ir al dashboard
+          navigate("/main/dashboard", { replace: true });
         }
-      } catch (error) {
-        // console.error("Error verificando el token:", error);
-        navigate("/login");
+        // ❌ Si no hay sesión, simplemente dejamos que se muestre <Login />
+      } catch {
+        // ✅ En caso de error, tampoco navegamos
+        // mostramos el login normalmente
       }
     };
 
@@ -31,8 +31,9 @@ export function ProtectedLogin({ children }: ProtectedLoginProps) {
   }, []);
 
   if (loading) {
-    return <Nothing />; // Mientras se verifica el token, mostramos una pantalla de carga
+    return <Nothing />; // Pantalla de carga mientras se verifica
   }
 
-  return children ? children : <Outlet />; // Una vez verificado, renderizamos el contenido
+  // ✅ Si no tiene sesión, renderizamos login
+  return children ? children : <Outlet />;
 }

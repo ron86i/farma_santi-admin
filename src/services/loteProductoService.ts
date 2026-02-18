@@ -12,7 +12,7 @@ export async function registrarLoteProducto(request: LoteProductoRequest): Promi
 }
 
 // Modificar lote de producto
-export async function modificarLoteProducto(id:number,request: LoteProductoRequest): Promise<MessageResponse> {
+export async function modificarLoteProducto(id: number, request: LoteProductoRequest): Promise<MessageResponse> {
     try {
         const response = await apiClient.put(`/lotes-productos/${id}`, request);
         return response.data as MessageResponse;
@@ -22,9 +22,10 @@ export async function modificarLoteProducto(id:number,request: LoteProductoReque
 }
 
 // Obtener lista de lotes de productos
-export async function obtenerListaLoteProductos(): Promise<LoteProductoInfo[]> {
+export async function obtenerListaLoteProductos(filtro?: string): Promise<LoteProductoInfo[]> {
+    const query = filtro ? `?${filtro}` : "";
     try {
-        const response = await apiClient.get('/lotes-productos');
+        const response = await apiClient.get(`/lotes-productos${query}`);
         return response.data as LoteProductoInfo[];
     } catch (err) {
         throw parseAxiosError(err, "Error al obtener lista de lote de productos");

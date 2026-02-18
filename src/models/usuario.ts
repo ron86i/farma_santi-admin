@@ -51,3 +51,7 @@ export interface UsuarioSimple {
   username: string;
   estado:string;
 }
+
+export interface UsuarioResetPassword {
+  newPassword:string;
+}

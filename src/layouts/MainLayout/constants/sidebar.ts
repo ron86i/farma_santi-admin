@@ -30,6 +30,7 @@ export function getSections(clearUsuario: () => void): Map<string, NavSection[]>
           items: [
             { to: "/main/usuarios", title: "Usuarios", icon: "user" },
             { to: "/main/roles", title: "Roles", icon: "shield" },
+            { to: "/main/backups", title: "Respaldos", icon: "database-backup" },
           ],
         },
         {
@@ -37,7 +38,6 @@ export function getSections(clearUsuario: () => void): Map<string, NavSection[]>
           items: [
             { to: "/main/categorias-productos", title: "Categorías", icon: "container" },
             { to: "/main/laboratorios", title: "Laboratorios", icon: "flask-round" },
-            { to: "/main/proveedores", title: "Proveedores", icon: "truck" },
             { to: "/main/productos", title: "Productos", icon: "package" },
             { to: "/main/lotes-productos", title: "Lotes", icon: "layers" },
             { to: "/main/principios-activos", title: "Principios Activos", icon: "dna" },
@@ -54,12 +54,13 @@ export function getSections(clearUsuario: () => void): Map<string, NavSection[]>
           label: "Información",
           items: [
             { to: "/main/clientes", title: "Clientes", icon: "users" },
-            { to: "/main/notificaciones", title: "Notificaciones", icon: "bell" },
+            { to: "/main/control-vencimientos", title: "Alertas de Stock", icon: "bell" },
             { to: "/main/movimientos", title: "Movimientos", icon: "activity" },
             { to: "/main/reportes", title: "Reportes", icon: "bar-chart" },
           ],
         },
         {
+          label: "Sesión",
           items: [
             {
               to: "/logout",
@@ -88,6 +89,7 @@ export function getSections(clearUsuario: () => void): Map<string, NavSection[]>
           items: [
             { to: "/main/usuarios", title: "Usuarios", icon: "user" },
             { to: "/main/roles", title: "Roles", icon: "shield" },
+            { to: "/main/backups", title: "Respaldos", icon: "database-backup" },
           ],
         },
         {
@@ -95,7 +97,6 @@ export function getSections(clearUsuario: () => void): Map<string, NavSection[]>
           items: [
             { to: "/main/categorias-productos", title: "Categorías", icon: "container" },
             { to: "/main/laboratorios", title: "Laboratorios", icon: "flask-round" },
-            { to: "/main/proveedores", title: "Proveedores", icon: "truck" },
             { to: "/main/productos", title: "Productos", icon: "package" },
             { to: "/main/lotes-productos", title: "Lotes", icon: "layers" },
             { to: "/main/principios-activos", title: "Principios Activos", icon: "dna" },
@@ -112,12 +113,54 @@ export function getSections(clearUsuario: () => void): Map<string, NavSection[]>
           label: "Información",
           items: [
             { to: "/main/clientes", title: "Clientes", icon: "users" },
+            { to: "/main/control-vencimientos", title: "Alertas de Stock", icon: "bell" },
+            { to: "/main/movimientos", title: "Movimientos", icon: "activity" },
+            { to: "/main/reportes", title: "Reportes", icon: "bar-chart" },
+          ],
+        },
+        {
+          label: "Sesión",
+          items: [
+            {
+              to: "/logout",
+              title: "Cerrar sesión",
+              icon: "log-out",
+              onClick: async () => {
+                await logOut();
+                clearUsuario();
+              },
+              className:
+                "hover:bg-red-400/50 dark:hover:bg-red-600/50 dark:text-red-600 dark:hover:text-neutral-200",
+            },
+          ],
+        },
+      ],
+    ],
+    [
+      "FARMACEUTICO",
+      [
+        {
+          label: "General",
+          items: [{ to: "/main/dashboard", title: "Inicio", icon: "home" }],
+        },
+        {
+          label: "Operaciones",
+          items: [
+            { to: "/main/ventas", title: "Ventas", icon: "credit-card" },
+          ],
+        },
+
+        {
+          label: "Información",
+          items: [
+            { to: "/main/clientes", title: "Clientes", icon: "users" },
             { to: "/main/notificaciones", title: "Notificaciones", icon: "bell" },
             { to: "/main/movimientos", title: "Movimientos", icon: "activity" },
             { to: "/main/reportes", title: "Reportes", icon: "bar-chart" },
           ],
         },
         {
+          label: "Sesión",
           items: [
             {
               to: "/logout",
@@ -158,6 +201,7 @@ export function getSections(clearUsuario: () => void): Map<string, NavSection[]>
           ],
         },
         {
+          label: "Sesión",
           items: [
             {
               to: "/logout",

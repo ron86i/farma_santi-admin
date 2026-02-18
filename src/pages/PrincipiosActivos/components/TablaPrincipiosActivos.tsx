@@ -5,19 +5,28 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import { useLaboratoriosContext } from "@/context";
 import { PrincipioActivoInfo } from "@/models/principioActivo";
 import { MenuAcciones } from "./MenuAcciones";
+import { Button } from "@/components/ui/button";
 
 type TablaPrincipiosActivosProps = {
     list: PrincipioActivoInfo[];
     loading: boolean;
     filter?: string;
+    pageSize?: number;
 };
 
-export function TablaPrincipiosActivos({ list: list, loading, filter }: TablaPrincipiosActivosProps) {
+export function TablaPrincipiosActivos({
+    list,
+    loading,
+    filter,
+    pageSize = 6,
+}: TablaPrincipiosActivosProps) {
     const [sortedData, setSortedData] = useState<PrincipioActivoInfo[]>([]);
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
     const { laboratorioAction } = useLaboratoriosContext();
+    const [currentPage, setCurrentPage] = useState(1);
 
+    // Ordenamiento
     useEffect(() => {
         let updated = [...list];
 
@@ -41,19 +50,15 @@ export function TablaPrincipiosActivos({ list: list, loading, filter }: TablaPri
         }
 
         setSortedData(updated);
-    }, [list, laboratorioAction]);
+    }, [list, sortKey, sortDirection, laboratorioAction]);
 
     const handleSort = (key: string) => {
         let direction: "asc" | "desc" | null = "asc";
 
         if (sortKey === key) {
-            if (sortDirection === "asc") {
-                direction = "desc";
-            } else if (sortDirection === "desc") {
-                direction = null;
-            } else {
-                direction = "asc";
-            }
+            if (sortDirection === "asc") direction = "desc";
+            else if (sortDirection === "desc") direction = null;
+            else direction = "asc";
         }
 
         if (direction === null) {
@@ -63,24 +68,6 @@ export function TablaPrincipiosActivos({ list: list, loading, filter }: TablaPri
             return;
         }
 
-        const sorted = [...list].sort((a, b) => {
-            const valueA = getNestedValue(a, key);
-            const valueB = getNestedValue(b, key);
-
-            if (typeof valueA === "string" && typeof valueB === "string") {
-                return direction === "asc"
-                    ? valueA.localeCompare(valueB)
-                    : valueB.localeCompare(valueA);
-            }
-
-            if (typeof valueA === "number" && typeof valueB === "number") {
-                return direction === "asc" ? valueA - valueB : valueB - valueA;
-            }
-
-            return 0;
-        });
-
-        setSortedData(sorted);
         setSortKey(key);
         setSortDirection(direction);
     };
@@ -92,16 +79,18 @@ export function TablaPrincipiosActivos({ list: list, loading, filter }: TablaPri
         { label: "Acciones", key: "acciones", sort: false },
     ];
 
+    // Filtro
     const searchText = filter?.toLowerCase();
-    const filteredLaboratorios = sortedData.filter((item) =>
-        [
-            item.id,
-            item.nombre,
-            item.descripcion,
-        ]
+    const filteredList = sortedData.filter((item) =>
+        [item.id, item.nombre, item.descripcion]
             .filter(Boolean)
             .some((field) => field?.toString().toLowerCase().includes(searchText ?? ""))
     );
+
+    // Paginación
+    const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+    const startIndex = (currentPage - 1) * pageSize;
+    const paginatedLaboratorios = filteredList.slice(startIndex, startIndex + pageSize);
 
     return (
         <div className="border rounded-md">
@@ -131,11 +120,17 @@ export function TablaPrincipiosActivos({ list: list, loading, filter }: TablaPri
                     {loading ? (
                         <TableRow>
                             <TableCell colSpan={columns.length} className="text-center">
-                                {/* Cargando... */}
+                                Cargando...
+                            </TableCell>
+                        </TableRow>
+                    ) : filteredList.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={columns.length} className="text-center">
+                                No se encontraron resultados
                             </TableCell>
                         </TableRow>
                     ) : (
-                        filteredLaboratorios.map((item) => (
+                        paginatedLaboratorios.map((item) => (
                             <TableRow key={item.id}>
                                 <TableCell>{item.id}</TableCell>
                                 <TableCell>{item.nombre}</TableCell>
@@ -150,6 +145,27 @@ export function TablaPrincipiosActivos({ list: list, loading, filter }: TablaPri
                     )}
                 </TableBody>
             </Table>
+
+            {/* Paginación siempre visible */}
+            <div className="flex justify-center items-center gap-4 p-2">
+                <Button
+                    variant="outline"
+                    disabled={currentPage === 1 || loading || filteredList.length === 0}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                    Anterior
+                </Button>
+                <span>
+                    Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                    variant="outline"
+                    disabled={currentPage === totalPages || loading || filteredList.length === 0}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >
+                    Siguiente
+                </Button>
+            </div>
         </div>
     );
 }

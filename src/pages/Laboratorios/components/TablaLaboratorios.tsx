@@ -14,19 +14,23 @@ import dateFormat from "dateformat";
 import { useLaboratoriosContext } from "@/context";
 import { LaboratorioInfo } from "@/models/laboratorio";
 import { MenuAcciones } from "./MenuAcciones";
+import { Button } from "@/components/ui/button";
 
 type TablaLaboratoriosProps = {
     laboratorios: LaboratorioInfo[];
     loading: boolean;   
     filter?: string;
+    pageSize?: number;
 };
 
-export function TablaLaboratorios({ laboratorios, loading, filter }: TablaLaboratoriosProps) {
+export function TablaLaboratorios({ laboratorios, loading, filter, pageSize = 6 }: TablaLaboratoriosProps) {
     const [sortedData, setSortedData] = useState<LaboratorioInfo[]>([]);
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
     const { laboratorioAction } = useLaboratoriosContext();
+    const [currentPage, setCurrentPage] = useState(1);
 
+    // Ordenamiento
     useEffect(() => {
         let updated = [...laboratorios];
 
@@ -50,19 +54,15 @@ export function TablaLaboratorios({ laboratorios, loading, filter }: TablaLabora
         }
 
         setSortedData(updated);
-    }, [laboratorios, laboratorioAction]);
+    }, [laboratorios, laboratorioAction, sortKey, sortDirection]);
 
     const handleSort = (key: string) => {
         let direction: "asc" | "desc" | null = "asc";
 
         if (sortKey === key) {
-            if (sortDirection === "asc") {
-                direction = "desc";
-            } else if (sortDirection === "desc") {
-                direction = null;
-            } else {
-                direction = "asc";
-            }
+            if (sortDirection === "asc") direction = "desc";
+            else if (sortDirection === "desc") direction = null;
+            else direction = "asc";
         }
 
         if (direction === null) {
@@ -72,24 +72,6 @@ export function TablaLaboratorios({ laboratorios, loading, filter }: TablaLabora
             return;
         }
 
-        const sorted = [...laboratorios].sort((a, b) => {
-            const valueA = getNestedValue(a, key);
-            const valueB = getNestedValue(b, key);
-
-            if (typeof valueA === "string" && typeof valueB === "string") {
-                return direction === "asc"
-                    ? valueA.localeCompare(valueB)
-                    : valueB.localeCompare(valueA);
-            }
-
-            if (typeof valueA === "number" && typeof valueB === "number") {
-                return direction === "asc" ? valueA - valueB : valueB - valueA;
-            }
-
-            return 0;
-        });
-
-        setSortedData(sorted);
         setSortKey(key);
         setSortDirection(direction);
     };
@@ -102,8 +84,9 @@ export function TablaLaboratorios({ laboratorios, loading, filter }: TablaLabora
         { label: "Acciones", key: "acciones", sort: false },
     ];
 
+    // Filtro
     const searchText = filter?.toLowerCase();
-    const filteredLaboratorios = sortedData.filter((lab) =>
+    const filteredList = sortedData.filter((lab) =>
         [
             lab.id,
             lab.nombre,
@@ -114,6 +97,11 @@ export function TablaLaboratorios({ laboratorios, loading, filter }: TablaLabora
             .filter(Boolean)
             .some((field) => field?.toString().toLowerCase().includes(searchText ?? ""))
     );
+
+    // Paginación
+    const totalPages = Math.max(1, Math.ceil(filteredList.length / pageSize));
+    const startIndex = (currentPage - 1) * pageSize;
+    const paginatedList = filteredList.slice(startIndex, startIndex + pageSize);
 
     return (
         <div className="border rounded-md">
@@ -143,11 +131,17 @@ export function TablaLaboratorios({ laboratorios, loading, filter }: TablaLabora
                     {loading ? (
                         <TableRow>
                             <TableCell colSpan={columns.length} className="text-center">
-                                {/* Cargando... */}
+                                Cargando...
+                            </TableCell>
+                        </TableRow>
+                    ) : filteredList.length === 0 ? (
+                        <TableRow>
+                            <TableCell colSpan={columns.length} className="text-center">
+                                No se encontraron resultados
                             </TableCell>
                         </TableRow>
                     ) : (
-                        filteredLaboratorios.map((lab) => (
+                        paginatedList.map((lab) => (
                             <TableRow key={lab.id}>
                                 <TableCell>{lab.id}</TableCell>
                                 <TableCell>{lab.nombre}</TableCell>
@@ -158,13 +152,34 @@ export function TablaLaboratorios({ laboratorios, loading, filter }: TablaLabora
                                     </Badge>
                                 </TableCell>
                                 <TableCell>
-                                    <MenuAcciones laboratorioId={lab.id} deletedAt={lab.deletedAt!! ?? null} />
+                                    <MenuAcciones laboratorioId={lab.id} deletedAt={lab.deletedAt ?? null} />
                                 </TableCell>
                             </TableRow>
                         ))
                     )}
                 </TableBody>
             </Table>
+
+            {/* Paginación */}
+            <div className="flex justify-center items-center gap-4 p-2">
+                <Button
+                    variant="outline"
+                    disabled={currentPage === 1 || loading || filteredList.length === 0}
+                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                >
+                    Anterior
+                </Button>
+                <span>
+                    Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                    variant="outline"
+                    disabled={currentPage === totalPages || loading || filteredList.length === 0}
+                    onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                >
+                    Siguiente
+                </Button>
+            </div>
         </div>
     );
 }

@@ -1,68 +1,156 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import { UsuarioDetail } from "@/models"; // Asegúrate que UsuarioDetail esté tipado correctamente
+import { UsuarioDetail } from "@/models";
 
-export function generarPDFUsuario(usuario: UsuarioDetail) {
+export function generarPDFUsuario(usuario: UsuarioDetail): void {
   const doc = new jsPDF();
+  
+  const primary: [number, number, number] = [30, 30, 30];
+  const secondary: [number, number, number] = [100, 100, 100];
+  const border: [number, number, number] = [230, 230, 230];
+  
+  let yPosition = 30;
 
-  // Título principal
-  doc.setFontSize(16);
-  doc.text("Detalle del Usuario", 14, 20);
+  // ========== TÍTULO ==========
+  doc.setTextColor(...primary);
+  doc.setFontSize(20);
+  doc.setFont("helvetica", "bold");
+  doc.text("Detalle del Usuario", 20, yPosition);
+  
+  yPosition += 15;
 
-  // Información del usuario
-  doc.setFontSize(12);
-  doc.text(`Usuario: ${usuario.username}`, 14, 30);
-  doc.text(`Contraseña: ${usuario.password}`, 14, 38);
-  doc.text(`Estado: ${usuario.estado}`, 14, 46);
-  doc.text(`Fecha de registro: ${new Date(usuario.createdAt).toLocaleString()}`, 14, 54);
-  doc.text(`Actualizado: ${new Date(usuario.updatedAt).toLocaleString()}`, 14, 62);
-  // if (usuario.deletedAt) {
-  //   doc.text(`Eliminado: ${new Date(usuario.deletedAt).toLocaleString()}`, 14, 70);
-  // }
-
-  // Información de la persona
-  const persona = usuario.persona;
-  doc.setFontSize(14);
-  doc.text("Información de la Persona", 14, 82);
-  doc.setFontSize(12);
-
-  let y = 90;
-  Object.entries(persona).forEach(([key, value]) => {
-    if (key === "id") return; // Oculta el ID de la persona
-    doc.text(`${formatearCampoPersona(key)}: ${value}`, 14, y);
-    y += 8;
-  });
-
-  // Tabla de roles sin ID
-  doc.setFontSize(14);
-  doc.text("Roles", 14, y + 10);
-
-  const roles = usuario.roles.map((r, index) => [
-    index + 1,
-    r.nombre
-  ]);
+  // ========== SECCIÓN: INFORMACIÓN DEL USUARIO ==========
+  const infoUsuario: string[][] = [
+    ["Usuario", usuario.username],
+    ["Estado", usuario.estado],
+    ["Registrado", new Date(usuario.createdAt).toLocaleDateString("es-ES")],
+  ];
 
   autoTable(doc, {
-    startY: y + 16,
-    head: [["#", "Nombre"]],
-    body: roles,
-    theme: "striped",
-    styles: { fontSize: 10 },
+    startY: yPosition,
+    body: infoUsuario,
+    theme: "plain",
+    styles: {
+      fontSize: 11,
+      cellPadding: { top: 5, bottom: 5, left: 0, right: 10 },
+      textColor: primary,
+      lineColor: border,
+      lineWidth: { bottom: 0.3 },
+    },
+    columnStyles: {
+      0: { 
+        fontStyle: "normal",
+        cellWidth: 50,
+        textColor: secondary,
+      },
+      1: { 
+        fontStyle: "normal",
+        cellWidth: 120,
+      },
+    },
+    didParseCell: (data) => {
+      // Línea solo debajo de cada fila
+      if (data.section === 'body') {
+        data.cell.styles.lineWidth = { bottom: 0.3, top: 0, left: 0, right: 0 };
+      }
+    },
   });
 
+  yPosition = (doc as any).lastAutoTable.finalY + 15;
+
+  // ========== SECCIÓN: DATOS PERSONALES ==========
+  const personaData: string[][] = Object.entries(usuario.persona)
+    .filter(([key]) => key !== "id")
+    .map(([key, value]) => [
+      formatearCampoPersona(key),
+      value?.toString() || "—",
+    ]);
+
+  if (personaData.length > 0) {
+    autoTable(doc, {
+      startY: yPosition,
+      body: personaData,
+      theme: "plain",
+      styles: {
+        fontSize: 11,
+        cellPadding: { top: 5, bottom: 5, left: 0, right: 10 },
+        textColor: primary,
+        lineColor: border,
+        lineWidth: { bottom: 0.3 },
+      },
+      columnStyles: {
+        0: { 
+          cellWidth: 50,
+          textColor: secondary,
+        },
+        1: { 
+          cellWidth: 120,
+        },
+      },
+      didParseCell: (data) => {
+        if (data.section === 'body') {
+          data.cell.styles.lineWidth = { bottom: 0.3, top: 0, left: 0, right: 0 };
+        }
+      },
+    });
+
+    yPosition = (doc as any).lastAutoTable.finalY + 15;
+  }
+
+  // ========== SECCIÓN: ROLES ==========
+  if (usuario.roles.length > 0) {
+    doc.setFontSize(11);
+    doc.setTextColor(...secondary);
+    doc.text("Roles", 20, yPosition);
+    
+    yPosition += 2;
+    
+    // Línea debajo del label
+    doc.setDrawColor(...border);
+    doc.setLineWidth(0.3);
+    doc.line(20, yPosition, 190, yPosition);
+    
+    yPosition += 8;
+
+    doc.setFontSize(11);
+    doc.setTextColor(...primary);
+    usuario.roles.forEach((rol) => {
+      doc.text(rol.nombre, 20, yPosition);
+      yPosition += 7;
+    });
+  }
+
+  // ========== PIE DE PÁGINA ==========
+  const pageHeight = doc.internal.pageSize.height;
+  doc.setFontSize(9);
+  doc.setTextColor(...secondary);
+  doc.text(
+    `Generado el ${new Date().toLocaleDateString("es-ES", { 
+      year: 'numeric', 
+      month: 'long', 
+      day: 'numeric' 
+    })}`,
+    20,
+    pageHeight - 15
+  );
+
+  // Guardar
   doc.save(`usuario_${usuario.username}.pdf`);
 }
 
-// Opcional: Formateador de claves para "persona"
 function formatearCampoPersona(campo: string): string {
-  const camposBonitos: Record<string, string> = {
-    nombres: "Nombres",
-    apellidos: "Apellidos",
+  const campos: Record<string, string> = {
     ci: "CI",
+    complemento: "Complemento",
+    nombres: "Nombres",
+    apellidoPaterno: "Apellido Paterno",
+    apellidoMaterno: "Apellido Materno",
+    genero: "Género",
     telefono: "Teléfono",
-    email: "Correo electrónico",
+    email: "Email",
     direccion: "Dirección",
-    // agrega más si los tienes
+    fechaNacimiento: "Fecha de Nacimiento",
   };
-  return camposBonitos[campo] || campo.charAt(0).toUpperCase() + campo.slice(1);
+  
+  return campos[campo] || campo;
 }

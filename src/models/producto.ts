@@ -1,5 +1,6 @@
 import { CategoriaSimple } from "./categoria";
 import { LaboratorioSimple } from "./laboratorio";
+import { Presentacion } from "./presentacion";
 
 export interface ProductoInfo {
   id: string;
@@ -13,6 +14,8 @@ export interface ProductoInfo {
   estado: string;
   urlFoto: string;
   deletedAt: Date | null;
+  presentacion: Presentacion;
+  unidadesPresentacion: number;
 }
 
 export interface PrincipioActivoProductoRequest {
@@ -29,6 +32,8 @@ export interface ProductoRequest {
   categorias: number[];
   laboratorioId: number;
   principiosActivos: PrincipioActivoProductoRequest[]
+  presentacionId: number;
+  unidadesPresentacion: number;
 }
 
 export interface FormaFarmacetica {
@@ -68,11 +73,15 @@ export interface ProductoDetail {
   createdAt: Date;
   deletedAt: Date | null;
   principiosActivos: ProductoPrincipioActivo[];
+  presentacion: Presentacion;
+  unidadesPresentacion: number;
 }
 
 export interface ProductoSimple {
   id: string;
   nombreComercial: string;
-  formaFarmaceutica?:string
+  formaFarmaceutica?: string
   laboratorio?: string;
+  presentacion: Presentacion
+  unidadesPresentacion:number
 }

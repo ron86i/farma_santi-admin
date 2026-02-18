@@ -1,98 +1,152 @@
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Eye, Layers, Pencil, CheckCircle, Ellipsis, CircleSlash } from "lucide-react";
 import { useState } from "react";
+import { useNavigate } from "react-router";
+import { 
+  DropdownMenu, 
+  DropdownMenuTrigger, 
+  DropdownMenuContent, 
+  DropdownMenuItem, 
+  DropdownMenuSeparator, 
+  DropdownMenuLabel
+} from "@/components/ui/dropdown-menu";
+import { Button } from "@/components/ui/button";
+import { 
+  Eye, 
+  Layers, 
+  Pencil, 
+  CheckCircle, 
+  Ellipsis, 
+  CircleSlash, 
+  FileText 
+} from "lucide-react";
+
+// Importación de Modales (Asumiendo que las rutas son correctas)
 import { ModalDetalleProducto } from "./ModalDetalleProducto";
 import { DialogHabilitarProducto } from "./DialogHabilitarProducto";
 import { DialogDeshabilitarProducto } from "./DialogDeshabilitarProducto";
 import { ModalModificarProducto } from "./ModalModificarProducto";
-import { useNavigate } from "react-router";
+import { ModalKardex } from "./ModalKardex";
+
+// Definimos los tipos de modales posibles para evitar strings mágicos
+type ModalType = 'ver' | 'editar' | 'kardex' | 'habilitar' | 'deshabilitar' | null;
 
 type MenuAccionesProps = {
   productoId: string;
   deletedAt: Date | null;
-  estado: string;
+  estado: string; // Idealmente sería: 'Activo' | 'Inactivo'
 };
 
 export function MenuAcciones({ productoId, deletedAt, estado }: MenuAccionesProps) {
-  const [openModalModificar, setOpenModalModificar] = useState(false);
-  const [openModalVer, setOpenModalVer] = useState(false);
-  const [openDialogHabilitar, setOpenDialogHabilitar] = useState(false);
-  const [openDialogDeshabilitar, setOpenDialogDeshabilitar] = useState(false);
   const navigate = useNavigate();
+  
+  // 1. Un único estado para controlar qué modal está abierto
+  const [activeModal, setActiveModal] = useState<ModalType>(null);
+
+  // Helper para cerrar modales
+  const closeModal = () => setActiveModal(null);
+
+  // Helper para manejar clics y evitar propagación (útil en tablas)
+  const handleAction = (e: React.MouseEvent, action: () => void) => {
+    e.stopPropagation();
+    action();
+  };
 
   return (
     <>
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
-          <Button variant="ghost" size="icon">
-            <Ellipsis className="w-4 h-4" />
+          <Button variant="ghost" size="icon" className="h-8 w-8 hover:bg-neutral-100">
+            <span className="sr-only">Abrir menú</span>
+            <Ellipsis className="w-4 h-4 text-neutral-500" />
           </Button>
         </DropdownMenuTrigger>
 
-        <DropdownMenuContent className="w-48" align="end" sideOffset={4}>
-          <DropdownMenuItem onClick={() => setOpenModalVer(true)}>
+        <DropdownMenuContent className="w-56" align="end" sideOffset={4}>
+          <DropdownMenuLabel>Acciones</DropdownMenuLabel>
+          
+          {/* GRUPO: VISUALIZACIÓN */}
+          <DropdownMenuItem onClick={(e) => handleAction(e, () => setActiveModal('ver'))}>
             <Eye className="w-4 h-4 mr-2 text-muted-foreground" />
-            Ver
+            Ver detalles
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={() => navigate(`/main/lotes-productos?buscar=${productoId}`)}>
+          <DropdownMenuItem onClick={(e) => handleAction(e, () => setActiveModal('kardex'))}>
+            <FileText className="w-4 h-4 mr-2 text-blue-600 dark:text-blue-400" />
+            Ver Kardex / Historial
+          </DropdownMenuItem>
+
+          <DropdownMenuItem onClick={(e) => handleAction(e, () => navigate(`/main/lotes-productos?buscar=${productoId}`))}>
             <Layers className="w-4 h-4 mr-2 text-muted-foreground" />
-            Ver lotes
+            Ver lotes activos
           </DropdownMenuItem>
 
-          <DropdownMenuItem onClick={() => setOpenModalModificar(true)}>
+          <DropdownMenuSeparator />
+
+          {/* GRUPO: EDICIÓN */}
+          <DropdownMenuItem onClick={(e) => handleAction(e, () => setActiveModal('editar'))}>
             <Pencil className="w-4 h-4 mr-2 text-muted-foreground" />
             Modificar
           </DropdownMenuItem>
 
-          <DropdownMenuItem
-            disabled={estado !== "Inactivo"}
-            onClick={() => setOpenDialogHabilitar(true)}
-          >
-            <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
-            Habilitar
-          </DropdownMenuItem>
+          <DropdownMenuSeparator />
 
-          <DropdownMenuItem
-            disabled={estado !== "Activo"}
-            onClick={() => setOpenDialogDeshabilitar(true)}
-          >
-            <CircleSlash className="w-4 h-4 mr-2 text-red-600" />
-            Deshabilitar
-          </DropdownMenuItem>
+          {/* GRUPO: ESTADO (Renderizado Condicional) */}
+          {estado === "Inactivo" ? (
+            <DropdownMenuItem onClick={(e) => handleAction(e, () => setActiveModal('habilitar'))}>
+              <CheckCircle className="w-4 h-4 mr-2 text-green-600" />
+              Habilitar
+            </DropdownMenuItem>
+          ) : (
+            <DropdownMenuItem 
+              onClick={(e) => handleAction(e, () => setActiveModal('deshabilitar'))}
+              className="text-red-600 focus:text-red-600 focus:bg-red-50 dark:focus:bg-red-900/20"
+            >
+              <CircleSlash className="w-4 h-4 mr-2" />
+              Deshabilitar
+            </DropdownMenuItem>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 
-      {openModalModificar && (
+      {/* GESTOR DE MODALES */}
+      {/* Renderizamos condicionalmente para no montar componentes pesados si no se usan */}
+      
+      {activeModal === 'editar' && (
         <ModalModificarProducto
           productoId={productoId}
-          open={openModalModificar}
-          onClose={() => setOpenModalModificar(false)}
+          open={true}
+          onClose={closeModal}
         />
       )}
 
-      {openModalVer && (
+      {activeModal === 'ver' && (
         <ModalDetalleProducto
           productoId={productoId}
-          open={openModalVer}
-          onClose={() => setOpenModalVer(false)}
+          open={true}
+          onClose={closeModal}
         />
       )}
 
-      {openDialogHabilitar && (
+      {activeModal === 'habilitar' && (
         <DialogHabilitarProducto
-          open={openDialogHabilitar}
-          onClose={() => setOpenDialogHabilitar(false)}
+          open={true}
+          onClose={closeModal}
           deletedAt={deletedAt}
           productoId={productoId}
         />
       )}
 
-      {openDialogDeshabilitar && (
+      {activeModal === 'deshabilitar' && (
         <DialogDeshabilitarProducto
-          open={openDialogDeshabilitar}
-          onClose={() => setOpenDialogDeshabilitar(false)}
+          open={true}
+          onClose={closeModal}
+          productoId={productoId}
+        />
+      )}
+
+      {activeModal === 'kardex' && (
+        <ModalKardex
+          open={true}
+          onClose={closeModal}
           productoId={productoId}
         />
       )}

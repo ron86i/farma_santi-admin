@@ -40,7 +40,7 @@ export async function obtenerClienteById(id: number): Promise<ClienteDetail> {
 
 export async function habilitarClienteById(id: number):Promise<MessageResponse> {
         try {
-        const response = await apiClient.get(`/clientes/estado/habilitar/${id}`);
+        const response = await apiClient.patch(`/clientes/estado/habilitar/${id}`);
         return response.data as MessageResponse;
     } catch (err) {
         throw parseAxiosError(err, "Error al habilitar cliente");
@@ -49,7 +49,7 @@ export async function habilitarClienteById(id: number):Promise<MessageResponse> 
 
 export async function deshabilitarClienteById(id: number):Promise<MessageResponse> {
         try {
-        const response = await apiClient.get(`/clientes/estado/deshabilitar/${id}`);
+        const response = await apiClient.patch(`/clientes/estado/deshabilitar/${id}`);
         return response.data as MessageResponse;
     } catch (err) {
         throw parseAxiosError(err, "Error al deshabilitar cliente");

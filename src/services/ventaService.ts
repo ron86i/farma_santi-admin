@@ -2,9 +2,10 @@ import { MessageDataResponse, MessageResponse, VentaDetail, VentaInfo, VentaRequ
 import apiClient, { parseAxiosError } from "./axiosClient";
 
 // Obtener lista de ventas
-export async function obtenerListaVentas(): Promise<VentaInfo[]> {
+export async function obtenerListaVentas(filtro?: string): Promise<VentaInfo[]> {
+        const query = filtro ? `?${filtro}` : "";
     try {
-        const response = await apiClient.get('/ventas');
+        const response = await apiClient.get('/ventas'+query);
         return response.data as VentaInfo[];
     } catch (err) {
         throw parseAxiosError(err, "Error al listar ventas");

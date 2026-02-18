@@ -13,7 +13,7 @@ export async function registrarOrdenCompra(request: CompraRequest): Promise<Mess
 };
 
 // Modificar orden de compra
-export async function modificarOrdenCompra(id: number,request: CompraRequest): Promise<MessageResponse> {
+export async function modificarOrdenCompra(id: number, request: CompraRequest): Promise<MessageResponse> {
     try {
         const response = await apiClient.put(`/compras/${id}`, request);
         return response.data as MessageResponse;
@@ -23,9 +23,10 @@ export async function modificarOrdenCompra(id: number,request: CompraRequest): P
 };
 
 // Listar compras pendiente, anuladas, completadas
-export async function obtenerListaCompras(): Promise<CompraInfo[]> {
+export async function obtenerListaCompras(filtro?: string): Promise<CompraInfo[]> {
+    const query = filtro ? `?${filtro}` : "";
     try {
-        const response = await apiClient.get('/compras');
+        const response = await apiClient.get('/compras'+query);
         return response.data as CompraInfo[];
     } catch (err) {
         throw parseAxiosError(err, "Error al obtener lista de compras");

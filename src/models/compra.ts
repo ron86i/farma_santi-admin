@@ -1,14 +1,15 @@
-import { LoteProductoInfo, ProveedorSimple, UsuarioSimple } from ".";
+import { LaboratorioSimple, LoteProductoInfo, UsuarioSimple } from ".";
 
 export interface DetalleCompraRequest {
   cantidad: number;
-  precio: number;
+  precioCompra: number;
+  precioVenta:number
   loteProductoId: number;
 }
 
 export interface CompraRequest {
   comentario?: string;
-  proveedorId: number;
+  laboratorioId: number;
   usuarioId?: number;
   detalles: DetalleCompraRequest[];
 }
@@ -21,7 +22,7 @@ export interface CompraInfo {
   estado: string;
   total: number;
   fecha: Date;
-  proveedor: ProveedorSimple;
+  laboratorio: LaboratorioSimple;
   usuario: UsuarioSimple;
 }
 
@@ -38,7 +39,7 @@ export interface CompraDAO {
   comentario: string;
   estado: string;
   total: number;
-  proveedorId: number;
+  laboratorioId: number;
   usuarioId: number;
   detalles: DetalleCompraDAO[];
 }
@@ -46,7 +47,8 @@ export interface CompraDAO {
 export interface DetalleCompraDetail {
   id: number;
   cantidad: number;
-  precio: number;
+  precioCompra: number;
+  precioVenta: number;
   loteProducto: LoteProductoInfo;
 }
 
@@ -58,7 +60,7 @@ export interface CompraDetail {
   total: number;
   fecha: Date;
   deletedAt?: Date;
-  proveedor: ProveedorSimple;
+  laboratorio: LaboratorioSimple;
   usuario: UsuarioSimple;
   detalles: DetalleCompraDetail[];
 }

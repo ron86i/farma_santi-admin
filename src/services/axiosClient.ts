@@ -1,46 +1,62 @@
-// axios.ts
-import axios, { AxiosError, AxiosInstance } from 'axios';
-import { useNavigate } from 'react-router';
+import axios, { AxiosError, type AxiosInstance } from 'axios';
 
-export const baseUrl = 'http://localhost:8890/api/v1'
-// Crear una instancia de Axios con configuración predeterminada
+
+const isBrowser = typeof window !== 'undefined';
+
+// @ts-ignore
+const runtimeEnv = isBrowser ? window.ENV : undefined;
+
+
+export const VITE_API_URL = runtimeEnv?.VITE_API_URL || import.meta.env.VITE_API_URL;
+export const baseUrl = VITE_API_URL + '/api/v1';
+
+// Crear instancia de Axios
 const apiClient: AxiosInstance = axios.create({
-  baseURL: baseUrl, // Cambia la URL base según tu API
+  baseURL: baseUrl,
   headers: {
-    'Content-Type': 'application/json', // Tipo de contenido predeterminado
-    // Agrega otros encabezados si es necesario (por ejemplo, para autenticación)
+    'Content-Type': 'application/json',
   },
-  withCredentials:true,
+  withCredentials: true,
 });
 
-// Configuración de interceptores para manejar respuestas o errores globalmente
-apiClient.interceptors.response.use(
-  (response) => {
-    // Aquí puedes agregar lógica para manejar respuestas exitosas
-    return response;
+
+apiClient.interceptors.request.use(
+  (config) => {
+    // Solo usamos 'localStorage' si estamos en un navegador
+    if (isBrowser) {
+      const token = localStorage.getItem("token"); // O donde sea que guardes el token
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      } else {
+        delete config.headers.Authorization;
+      }
+    }
+    return config;
   },
-  (error) => {
-        if (error.response && error.response.status === 401) {
-            // Verificar si el usuario ya está en la página de login
-            const currentPath = window.location.pathname; // Obtener la ruta actual
-            if (currentPath !== '/login') {
-                // Usamos useNavigate para redirigir sin recargar la página
-                const navigate = useNavigate();
-                navigate('/login'); // Redirige a la página de login
-            }
-        }
+  (error) => Promise.reject(error)
+);
+
+
+apiClient.interceptors.response.use(
+  (response) => response, // respuestas exitosas
+  (error: AxiosError) => {
+    // Solo usamos 'window.location' si estamos en un navegador
+    if (isBrowser && error.response?.status === 401) {
+      const currentPath = window.location.pathname;
+
+      if (currentPath !== '/login') {
+        window.location.href = '/login';
+      }
+    }
     return Promise.reject(error);
   }
 );
 
-// Exportar la instancia configurada
-export default apiClient;
-
-// Utilidad para manejar errores Axios de forma consistente
+// Utilidad para manejar errores (esta parte estaba perfecta)
 export function parseAxiosError(err: unknown, fallbackMsg: string) {
   const axiosError = err as AxiosError;
 
-  if (axiosError.response?.data && typeof axiosError.response.data === "object") {
+  if (axiosError.response?.data && typeof axiosError.response.data === 'object') {
     const data = axiosError.response.data as any;
     return {
       status: axiosError.response.status,
@@ -53,3 +69,5 @@ export function parseAxiosError(err: unknown, fallbackMsg: string) {
     message: fallbackMsg,
   };
 }
+
+export default apiClient;

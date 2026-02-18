@@ -13,7 +13,7 @@ import { ArrowDown, ArrowUp } from "lucide-react";
 import { VentaInfo } from "@/models";
 import dateFormat from "dateformat";
 import { MenuAcciones } from "./MenuAcciones";
-// import { MenuAcciones } from "./MenuAcciones";
+import { Button } from "@/components/ui/button";
 
 type TablaVentasProps = {
     list: VentaInfo[];
@@ -25,6 +25,10 @@ export function TablaVentas({ list, loading, filter }: TablaVentasProps) {
     const [sortedVentas, setSortedVentas] = useState<VentaInfo[]>([]);
     const [sortKey, setSortKey] = useState<string | null>(null);
     const [sortDirection, setSortDirection] = useState<"asc" | "desc">("asc");
+
+    // 🔹 Paginación
+    const itemsPerPage = 6;
+    const [currentPage, setCurrentPage] = useState(1);
 
     useEffect(() => {
         let updated = [...list];
@@ -49,6 +53,7 @@ export function TablaVentas({ list, loading, filter }: TablaVentasProps) {
         }
 
         setSortedVentas(updated);
+        setCurrentPage(1); // reset a la primera página cuando cambie la lista o el orden
     }, [list, sortKey, sortDirection]);
 
     const handleSort = (key: string) => {
@@ -96,6 +101,11 @@ export function TablaVentas({ list, loading, filter }: TablaVentasProps) {
             .some((field) => field?.toString().toLowerCase().includes(searchText ?? ""))
     );
 
+    // 🔹 Datos paginados
+    const totalPages = Math.ceil(filteredVentas.length / itemsPerPage);
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    const currentData = filteredVentas.slice(startIndex, startIndex + itemsPerPage);
+
     return (
         <div className="border rounded-md">
             <Table>
@@ -127,14 +137,14 @@ export function TablaVentas({ list, loading, filter }: TablaVentasProps) {
                                 Cargando...
                             </TableCell>
                         </TableRow>
-                    ) : filteredVentas.length === 0 ? (
+                    ) : currentData.length === 0 ? (
                         <TableRow>
                             <TableCell colSpan={columns.length} className="text-center">
                                 No hay ventas para mostrar
                             </TableCell>
                         </TableRow>
                     ) : (
-                        filteredVentas.map((venta) => (
+                        currentData.map((venta) => (
                             <TableRow key={venta.id}>
                                 <TableCell>{venta.codigo}</TableCell>
                                 <TableCell>
@@ -161,16 +171,36 @@ export function TablaVentas({ list, loading, filter }: TablaVentasProps) {
                                     >
                                         {venta.estado}
                                     </Badge>
-
                                 </TableCell>
                                 <TableCell>
-                                    <MenuAcciones ventaId={venta.id} estado={venta.estado} deletedAt={venta.deletedAt} />
+                                    <MenuAcciones ventaId={venta.id} estado={venta.estado} deletedAt={venta.deletedAt} urlFactura={venta.url}/>
                                 </TableCell>
                             </TableRow>
                         ))
                     )}
                 </TableBody>
             </Table>
+
+            {/* 🔹 Controles de paginación siempre visibles */}
+            <div className="flex justify-center items-center gap-4 p-2">
+                <Button
+                    variant="outline"
+                    disabled={currentPage === 1}
+                    onClick={() => setCurrentPage((p) => p - 1)}
+                >
+                    Anterior
+                </Button>
+                <span>
+                    Página {currentPage} de {totalPages}
+                </span>
+                <Button
+                    variant="outline"
+                    disabled={currentPage === totalPages}
+                    onClick={() => setCurrentPage((p) => p + 1)}
+                >
+                    Siguiente
+                </Button>
+            </div>
         </div>
     );
 }
